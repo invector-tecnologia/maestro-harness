@@ -1,5 +1,11 @@
 # TASK 035: Core Mode and Interview Directives Editor
 
+> **⚠️ SUPERSEDED (2026-07-07) by [ADR 0002](../../adr/0002-three-mode-workspace-and-interview-removal.md).**
+> Interview Mode and Architect/Core Mode are removed. Directive governance moves to **Config Mode**
+> and orchestration monitoring to **Maestro Mode** in the new three-mode Workspace. The replacement
+> specs are **task 053** (Workspace boundary + shell + `init`), **054** (Config Mode), **055**
+> (Maestro Mode). The content below is retained for historical context only and is not implemented.
+
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Current onboarding-only Interview Mode, form-based CreationWizard, and markdown governance for personas, persona skills, and project scopes.
 * **Context Anchors:** #file:docs/Maestro_Manifesto/ARCHITECTURE.md, #file:docs/Maestro_Manifesto/CONVENTIONS.md

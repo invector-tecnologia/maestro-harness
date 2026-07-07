@@ -41,6 +41,15 @@ pub enum Command {
     InitConfig,
     /// Run readiness checks (config, governance).
     Doctor,
+    /// Run the headless duplex IPC core (reads commands on stdin, writes events on stdout).
+    Run,
+    /// Launch the Nim/Niobium Workspace TUI (which spawns the core).
+    Tui,
+    /// Bootstrap a new project (plain-CLI questionnaire), scaffold defaults, then open the Workspace.
+    Init {
+        /// Optional project name; prompted if omitted.
+        name: Option<String>,
+    },
 }
 
 /// Dispatch a parsed [`Cli`] invocation.
@@ -63,6 +72,9 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
             print_line(&format!("wrote {}", path.display()));
         }
         Command::Doctor => doctor(&root)?,
+        Command::Run => run_core()?,
+        Command::Tui => launch_tui()?,
+        Command::Init { name } => init_project(name)?,
     }
     Ok(())
 }
@@ -149,6 +161,151 @@ fn pass_fail(ok: bool) -> &'static str {
     }
 }
 
+/// The answers collected by `maestro init` (plain-CLI, no LLM).
+#[derive(Debug, Clone, PartialEq)]
+pub struct InitAnswers {
+    /// Project name (required).
+    pub name: String,
+    /// Primary scope (required).
+    pub scope: String,
+    /// Optional project type (one of `PROJECT_TYPES`).
+    pub kind: Option<String>,
+    /// Optional layout-reference image paths.
+    pub layout_refs: Vec<String>,
+}
+
+const PROJECT_TYPES: [&str; 4] = ["library", "Web", "Desktop", "Mobile"];
+
+/// Run the headless duplex IPC core over stdin/stdout, rooted at the current dir.
+fn run_core() -> anyhow::Result<()> {
+    let root = std::env::current_dir()?;
+    let stdin = std::io::stdin();
+    let stdout = std::io::stdout();
+    crate::presentation::ipc::server::run_core(&root, stdin.lock(), stdout.lock())?;
+    Ok(())
+}
+
+/// Launch the Nim/Niobium TUI binary (`$MAESTRO_TUI` or `maestro_tui` on PATH).
+fn launch_tui() -> anyhow::Result<()> {
+    let bin = std::env::var("MAESTRO_TUI").unwrap_or_else(|_| "maestro_tui".to_string());
+    let status = std::process::Command::new(&bin)
+        .status()
+        .map_err(|e| anyhow::anyhow!("failed to launch TUI '{bin}': {e}"))?;
+    if !status.success() {
+        anyhow::bail!("TUI exited with status {status}");
+    }
+    Ok(())
+}
+
+/// Prompt for the bootstrap answers over `input`/`out`. Pure over its streams.
+pub fn prompt_answers(
+    mut input: impl std::io::BufRead,
+    mut out: impl Write,
+    name_arg: Option<String>,
+) -> std::io::Result<InitAnswers> {
+    fn read_line(input: &mut impl std::io::BufRead) -> std::io::Result<String> {
+        let mut line = String::new();
+        input.read_line(&mut line)?;
+        Ok(line.trim().to_string())
+    }
+
+    let mut name = name_arg.unwrap_or_default().trim().to_string();
+    while name.is_empty() {
+        write!(out, "Project name (required): ")?;
+        out.flush()?;
+        name = read_line(&mut input)?;
+    }
+
+    let mut scope = String::new();
+    while scope.is_empty() {
+        write!(out, "Primary scope (required): ")?;
+        out.flush()?;
+        scope = read_line(&mut input)?;
+    }
+
+    write!(
+        out,
+        "Project type [library/Web/Desktop/Mobile] (optional): "
+    )?;
+    out.flush()?;
+    let type_raw = read_line(&mut input)?;
+    let kind = PROJECT_TYPES
+        .iter()
+        .find(|t| t.eq_ignore_ascii_case(&type_raw))
+        .map(|t| (*t).to_string());
+
+    let mut layout_refs = Vec::new();
+    loop {
+        write!(out, "Add a layout reference image path? (path or 'No'): ")?;
+        out.flush()?;
+        let ans = read_line(&mut input)?;
+        if ans.is_empty() || ans.eq_ignore_ascii_case("no") || ans.eq_ignore_ascii_case("n") {
+            break;
+        }
+        layout_refs.push(ans);
+    }
+
+    Ok(InitAnswers {
+        name,
+        scope,
+        kind,
+        layout_refs,
+    })
+}
+
+/// Scaffold governance defaults and write the project's primary scope file.
+pub fn scaffold_project(root: &Path, answers: &InitAnswers) -> std::io::Result<Vec<String>> {
+    let mut created = scaffold_markdown(root)?;
+    let _ = init_config(root)?;
+    created.push("config.yml".to_string());
+
+    let slug: String = answers
+        .scope
+        .to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+        .collect();
+    let scope_path = root
+        .join("maestro")
+        .join("scopes")
+        .join(format!("{slug}.md"));
+
+    let mut body = format!(
+        "# Scope: {}\n\n- Project: {}\n",
+        answers.scope, answers.name
+    );
+    if let Some(kind) = &answers.kind {
+        body.push_str(&format!("- Type: {kind}\n"));
+    }
+    if !answers.layout_refs.is_empty() {
+        body.push_str("- Layout references:\n");
+        for reference in &answers.layout_refs {
+            body.push_str(&format!("  - {reference}\n"));
+        }
+    }
+    std::fs::write(&scope_path, body)?;
+    created.push(format!("scopes/{slug}.md"));
+    Ok(created)
+}
+
+/// Interactive bootstrap: collect answers, scaffold, then open the Workspace.
+fn init_project(name: Option<String>) -> anyhow::Result<()> {
+    let root = std::env::current_dir()?;
+    let stdin = std::io::stdin();
+    let answers = prompt_answers(stdin.lock(), std::io::stdout(), name)?;
+    let created = scaffold_project(&root, &answers)?;
+    print_line(&format!(
+        "scaffolded project '{}': {}",
+        answers.name,
+        created.join(", ")
+    ));
+    print_line("opening Workspace (Maestro Mode)\u{2026}");
+    if let Err(e) = launch_tui() {
+        print_line(&format!("(TUI not launched: {e})"));
+    }
+    Ok(())
+}
+
 fn print_line(text: &str) {
     // User-facing CLI output (not diagnostic logging).
     let mut out = std::io::stdout().lock();
@@ -203,6 +360,47 @@ mod tests {
         // The written template must load and validate.
         let cfg = crate::infrastructure::config::load_from(&root).unwrap();
         assert_eq!(cfg.system.default_provider, "ollama");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn prompt_collects_required_and_optional_fields() {
+        let input: &[u8] = b"\nMyProj\nprimary\nWeb\n/img/a.png\nno\n";
+        let mut out = Vec::new();
+        let answers = prompt_answers(input, &mut out, None).unwrap();
+        assert_eq!(answers.name, "MyProj");
+        assert_eq!(answers.scope, "primary");
+        assert_eq!(answers.kind.as_deref(), Some("Web"));
+        assert_eq!(answers.layout_refs, vec!["/img/a.png".to_string()]);
+    }
+
+    #[test]
+    fn prompt_uses_name_arg_without_prompting() {
+        let input: &[u8] = b"primary\n\nno\n";
+        let mut out = Vec::new();
+        let answers = prompt_answers(input, &mut out, Some("Given".to_string())).unwrap();
+        assert_eq!(answers.name, "Given");
+        assert_eq!(answers.scope, "primary");
+        assert_eq!(answers.kind, None);
+        assert!(answers.layout_refs.is_empty());
+    }
+
+    #[test]
+    fn scaffold_project_writes_scope_file() {
+        let root = std::env::temp_dir().join(format!("maestro-init-{}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let answers = InitAnswers {
+            name: "P".to_string(),
+            scope: "Primary Scope".to_string(),
+            kind: Some("library".to_string()),
+            layout_refs: vec![],
+        };
+        let created = scaffold_project(&root, &answers).unwrap();
+        assert!(created.iter().any(|c| c.starts_with("scopes/")));
+        let scope_file = root.join("maestro/scopes/primary_scope.md");
+        assert!(scope_file.exists());
+        let body = std::fs::read_to_string(&scope_file).unwrap();
+        assert!(body.contains("Type: library"));
         std::fs::remove_dir_all(&root).ok();
     }
 }

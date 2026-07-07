@@ -60,8 +60,8 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.1.0
 | Level | Status | Examples |
 |-------|--------|----------|
 | **Foundational** | ✅ Complete | `maestro init-config`, `maestro validate-config`, `maestro doctor` readiness checks, `maestro scaffold-markdown` |
-| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), Nim/Niobium TUI dashboard over a stdio JSON protocol, Ollama provider adapter + registry, default persona catalog, required-field creation wizards |
-| **Advanced** | 📋 Planned | Guided onboarding resumption, accessibility controls, cross-platform packaging |
+| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), three-mode Nim/Niobium Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
+| **Advanced** | 📋 Planned | Governed micro-project execution (FSM · cascade · rollback · git persistence), accessibility controls, cross-platform packaging |
 | **Enterprise** | 📋 Roadmap | Compliance reporting, policy extension, audit analytics |
 
 **See [`docs/Maestro_Manifesto/FEATURE_LEVELS.md`](docs/Maestro_Manifesto/FEATURE_LEVELS.md) for detailed capability breakdown.**
@@ -181,7 +181,7 @@ agents:
 3. **INSPECT** — `maestro list-agents` catalogs the registered personas; `maestro doctor` runs readiness checks (configuration + governance scaffold).
 4. **HEADLESS** — every command accepts the global `--no-tui` flag for CI/automation.
 
-> **Planned (v0.2+):** `maestro init`, `maestro tui`, `maestro run`, `maestro deps check`, `maestro directives`, `maestro interview`, and `maestro onboarding` — the interactive Nim/Niobium command deck and guided onboarding flows.
+> **Planned (v0.2+):** `maestro init` (plain-CLI bootstrap), `maestro tui`, and `maestro run` — the interactive three-mode Nim/Niobium Workspace (Config · Maestro · Product) over the stdio protocol. Interview/onboarding mode was removed; see [ADR 0002](docs/adr/0002-three-mode-workspace-and-interview-removal.md).
 
 ### ⚡ Utility Commands (0.1.0)
 

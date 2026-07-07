@@ -15,11 +15,16 @@ fn main() -> anyhow::Result<()> {
 }
 
 /// Initialize the global `tracing` subscriber. Verbosity is controlled by the
-/// `RUST_LOG` environment variable (defaults to `info`).
+/// `RUST_LOG` environment variable (defaults to `info`). Logs go to stderr so
+/// that stdout stays reserved for the IPC protocol stream (`maestro run`).
 fn init_tracing() {
     use tracing_subscriber::{fmt, EnvFilter};
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
-    fmt().with_env_filter(filter).with_target(false).init();
+    fmt()
+        .with_env_filter(filter)
+        .with_target(false)
+        .with_writer(std::io::stderr)
+        .init();
 }
 
 // Keep `Command` referenced so the module wiring is exercised at compile time.

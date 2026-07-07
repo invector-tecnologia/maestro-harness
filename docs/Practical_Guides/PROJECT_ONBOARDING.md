@@ -1,80 +1,51 @@
-# Project Onboarding Guide
+# Project Setup & Development Guide
 
-## Goal
-Set up a new Maestro project using the guided Niobium flow.
+> Setup no longer uses an interview flow (ADR
+> [0002](../adr/0002-three-mode-workspace-and-interview-removal.md)). This guide covers creating a
+> Maestro project and the developer environment for contributing to Maestro itself.
 
-## Recommended Start
+## Create a project
 ```bash
 maestro init my-project
 ```
+The plain-CLI bootstrap collects the project **name** (required), **primary scope** (required),
+**type** (optional), and any **layout reference image paths** (optional), then scaffolds:
+- `maestro/config.yml`
+- `maestro/scopes/` (with your primary scope written from the answers)
+- `maestro/personas/` and `maestro/skills/` (default catalog)
 
-This command scaffolds the project and opens the onboarding interview mode automatically.
+It opens the Workspace on **Maestro Mode**. Manage everything afterward in **Config Mode** (`F1`):
+create/edit/update/archive personas, skills, and scopes — defaults and customs alike. The immutable
+Maestro orchestrator persona cannot be edited or archived.
 
-For non-interactive automation:
+## Developer environment (contributing to Maestro)
+Two stacks behind one process boundary:
+
+### Rust core
 ```bash
-maestro init my-project --no-tui
+cargo fmt --all --check
+cargo clippy --all-targets -- -D warnings
+cargo test --all-targets
+scripts/quality-gate.sh
 ```
 
-## How To Start Directly
+### Nim / Niobium TUI
 ```bash
-maestro onboarding --mode detailed --config ~/.config/maestro/config.yml
+scripts/install-niobium.sh      # resolve the pinned Niobium commit
+cd frontend
+nph --check .                   # formatting
+nimble test                     # headless Niobium test-backend snapshots
 ```
 
-For a quicker path with safe defaults:
-```bash
-maestro onboarding --mode fast --config ~/.config/maestro/config.yml
-```
-
-## Guided Flow
-1. Setup welcome screen.
-2. Scope wizard (step 1/3).
-3. Persona wizard (step 2/3).
-4. Skill wizard (step 3/3).
-5. Completion screen with project ready for use.
-6. Automatic return to Workspace Mode (the runtime monitor: ① Input, ② Orchestration, ③ Agent Activity, ④ Readiness).
-
-Fast mode skips the guided interview and uses defaults when the workspace is already close to ready.
-
-## Onboarding Engines (Model-Availability SENSE)
-Maestro probes the configured default provider before the interview and picks an engine
-automatically:
-- **LLM-driven interview (model online):** a single cognitive voice runs the interview
-  and authors scope, persona, and skill files through markdown governance.
-- **Guided setup (model offline):** when no model is reachable, Maestro lists the steps
-  to bring a provider online and re-senses on the next start, auto-promoting to the
-  LLM-driven interview once a model is available.
-
-The active engine and model online/offline state are shown in the Maestro panel status
-line.
-
-## Validations
-- Required fields block progress.
-- Scope requires a 3-digit numeric prefix (for example: `001`).
-- Persona/scope/skill creation follows markdown governance validation.
-
-## Expected Result
-After completion, the project has initial artifacts in:
-- `maestro_scopes`
-- `maestro_personas`
-- `maestro_skills`
-
-## Recommended Commands After Completion
-```bash
-maestro list-agents
-maestro doctor --config ~/.config/maestro/config.yml
-maestro directives --config ~/.config/maestro/config.yml
-maestro run --config ~/.config/maestro/config.yml --duration-ms 500
-```
-
-Use `maestro directives` (or `/architect` inside the TUI) to govern personas, persona skills, and scopes; return to the monitor with `/monitor`.
+## How the two processes connect
+- `maestro run` is the headless core: it reads `TuiCommand` frames on stdin and writes `CoreEvent`
+  frames on stdout (line-delimited JSON, protocol v2 — ADR
+  [0003](../adr/0003-ipc-v2-mode-scoped-protocol.md)).
+- The Nim `maestro_tui` binary owns the terminal, spawns `maestro run`, and renders the three-mode
+  Workspace. Point it at a specific core with `MAESTRO_CORE`, or point `maestro tui` at a specific
+  frontend with `MAESTRO_TUI`.
 
 ## Troubleshooting
-- If the flow is in an unexpected stage, use:
-```bash
-/onboarding status
-/onboarding restart project
-```
-- To restart user onboarding and return to project onboarding:
-```bash
-/onboarding restart user
-```
+- `maestro doctor` — verifies config load + governance scaffold.
+- `maestro validate-config` — validates `config.yml` cross-references.
+- Niobium is not on the nimble registry; run `scripts/install-niobium.sh` before building the TUI.

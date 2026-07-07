@@ -40,10 +40,14 @@ Implemented modules:
 | 000 | Bootstrap | ✅ done |
 | 001–016 | 0.1.0 Foundation + Core | ✅ done |
 | 051, 052 | IPC + Nim shell (resequenced into 0.1.0) | ✅ done |
-| 017–032 | 0.2.0 Onboarding + Advanced | ⏳ not started |
-| 033–045 | Post-0.2.0 governance/orchestration/interview | ⏳ not started |
-| 046–050 | Micro-project engine (FSM→cascade→rollback→git) | ⏳ not started |
-| 041, 042 | TUI module split / multi-model harness | ⚠️ **spec files missing** — author via `Plan Author` agent first |
+| 013 | TUI creation wizards | ❌ RETIRED — folded into Config Mode (ADR 0002) |
+| 017–032 | 0.2.0 Onboarding / interview UX | ❌ RETIRED — interview mode cut (ADR 0002) |
+| 043–045 | LLM-driven interview engine | ❌ RETIRED — interview mode cut (ADR 0002) |
+| 035 | Three-Mode Workspace (was Core/Interview modes) | 🔁 REWRITTEN — Config·Maestro·Product (ADR 0002) |
+| 040, 041 | Mode naming + Nim module split | 🔁 REWRITTEN for the three modes |
+| 033–034, 036–039, 042 | Governance / orchestration / multi-model harness | ⏳ kept, not started |
+| 046–050 | Micro-project engine (FSM→cascade→rollback→git) | ⏳ kept, not started |
+| W1–W6 | **Workspace pivot** (init CLI, IPC v2, Config/Maestro/Product) | 🚧 W1 (053) + W2 (054) done; W3–W6 next |
 
 ## 4. Key sequencing decisions (already applied)
 
@@ -68,13 +72,22 @@ Implemented modules:
 
 ## 6. Recommended next steps (in order)
 
-1. **Author specs 041 + 042** (missing) with the `Plan Author` agent.
-2. **Wire the process boundary end-to-end**: implement `maestro run`/`tui` so the core streams
-   `CoreEvent`s to the `frontend/` process and consumes `TuiCommand`s (uses existing `ipc` + `protocol.nim`).
-3. **Start Phase 3 Track B (micro-project engine)** — it is the product's identity and is unblocked
-   now that IPC exists: 046 FSM → 048 cascade → 049 rollback → 050 git-persistence
-   (agents: `Cascade Runner`, `Rollback Planner`). Use `fsm-orchestration` / `rollback-cascade` instructions.
-4. **Or Phase 2 (0.2.0 onboarding, 017–032)** if breadth-first product coverage is preferred.
+> **Direction change (2026-07-07):** Maestro pivots to a **three-mode Workspace** — Config Mode,
+> Maestro Mode, Product Mode — and **removes interview/onboarding mode entirely**. See
+> [ADR 0002](../adr/0002-three-mode-workspace-and-interview-removal.md) and
+> [ADR 0003](../adr/0003-ipc-v2-mode-scoped-protocol.md). The seven-phase execution plan lives in
+> the session plan; the workspace tasks are labelled `W1–W6` in the ledger above.
+
+1. **W1 — Wire the boundary + shell (Phase 1):** IPC v1→v2 (ADR 0003), long-running `maestro run`/
+   `tui`, Nim tick loop + `Tabs` Workspace shell, and the plain-CLI `maestro init` bootstrap.
+2. **W2 — Config Mode (Phase 2):** governance CRUD + archive (config.yml + personas/skills/scopes,
+   defaults and customs) with a unified markdown parser (absorbs 037/038; Architect Mode retired).
+3. **W3 — Maestro Mode (Phase 3):** FSM engine (046) + meta-orchestrator (039) + Two-Towers (047) +
+   serial cascade (048) + `ModelRouter` (042). Agents: `Cascade Runner`, `Persona Instrumenter`.
+4. **W4 — Governed execution (Phase 4):** approval gates, rollback (049), git persistence (050),
+   safety harness (033/034). Agents: `Cascade Runner`, `Rollback Planner`.
+5. **W5 — Product Mode (Phase 5):** release model + demo runner (live artifact stream) + changelog.
+6. **W6 — Providers / accessibility / packaging / RC (Phase 6).**
 
 ## 7. Known gaps / debt
 

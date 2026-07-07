@@ -1,59 +1,61 @@
 # Maestro Commands and Panels
 
+> Updated for the three-mode Workspace (ADR
+> [0002](../adr/0002-three-mode-workspace-and-interview-removal.md)). Interview / onboarding mode has
+> been removed; setup is a plain-CLI `maestro init` bootstrap.
+
 ## CLI Commands
-- `maestro run [--config <path>] [--duration-ms <n>]`: Runs the multi-agent cycle for a bounded duration.
-- `maestro tui [--config <path>]`: Opens the interactive TUI (Workspace Mode monitor).
-- `maestro interview [--config <path>]`: Launches the guided onboarding interview.
-- `maestro directives [--config <path>]`: Opens Architect Mode directly on the directive governance home (the directives picker select stage).
-- `maestro onboarding [--config <path>] [--mode fast|detailed]`: Starts onboarding directly.
-- `maestro onboarding --mode fast`: Starts with safe defaults for quicker setup.
-- `maestro onboarding --mode detailed`: Starts the guided interview for full control.
-- `maestro validate-config [--config <path>]`: Validates runtime configuration.
-- `maestro list-agents`: Lists registered default personas.
-- `maestro doctor [--config <path>]`: Checks environment, config, and governance structure.
-- `maestro scaffold-markdown`: Creates initial markdown governance artifacts.
-- `maestro init-config`: Generates local config template in `./maestro/config.yml`.
-- `maestro init <project-name> [--no-tui]`: Bootstraps a new project with governance folders and config, then opens onboarding interview mode by default.
-- `maestro init <project-name> --no-tui`: Bootstraps and exits without opening the TUI (recommended for scripts/CI).
-- `maestro deps check --scope <harness|project|all>`: Validates dependency zones independently.
-- `maestro rag <subcommand>`: Runs RAG ingestion/query operations.
-- `maestro logout`: Clears provider credentials from local secure storage.
+- `maestro init [<project-name>]`: Plain-CLI bootstrap (no LLM). Prompts for project **name**
+  (required), **primary scope** (required), **type** (optional: library/Web/Desktop/Mobile), and
+  **layout reference image paths** (optional, repeated until you answer `No`). Scaffolds the
+  governance defaults + `maestro/config.yml`, writes the answers into the primary scope file, then
+  opens the Workspace on **Maestro Mode**.
+- `maestro tui`: Launches the Nim/Niobium Workspace TUI (which spawns the headless core).
+- `maestro run`: Runs the headless duplex core — reads `TuiCommand` frames on stdin and writes
+  `CoreEvent` frames on stdout (protocol v2). This is what the TUI drives; also useful for scripting.
+- `maestro validate-config`: Validates `maestro/config.yml` and its cross-references.
+- `maestro list-agents`: Lists the registered default personas.
+- `maestro doctor`: Checks config and governance-scaffold readiness.
+- `maestro scaffold-markdown`: Creates the `scopes` / `personas` / `skills` governance folders.
+- `maestro init-config`: Writes a starter `maestro/config.yml`.
+- `maestro --no-tui …`: Global flag to stay headless.
 
-## Modes
-Maestro has two intent-driven modes; there is no default landing mode.
-- **Workspace Mode** is a lean runtime monitor. Submitting a prompt makes the Maestro agent orchestrate the demand end to end: it **senses** the incoming demand, **plans** a brief, **delegates** the demand to each worker persona in turn, **audits** every contribution (approved or rejected), and **delivers** a synthesized result with an audit trail. Workers run one at a time, Maestro narrates each phase in real time, and a heartbeat fires at least every 5 seconds while a worker runs longer than 5 seconds. Concurrent prompts are serialized (single-flight), and per-worker failure isolation is preserved (a failing worker is audited `rejected` and the workflow continues).
-- **Architect Mode** is the single directive governance home (open it with `/architect`, or the `maestro directives` CLI). It opens on a select stage (the directives picker, grouped by type with the Maestro persona shown read-only), then hands off to a guided authoring interview for Create / Edit / Update / Delete of personas, persona skills, and project scopes. The Project Manager agent writes scope files first; Maestro then reads the written scope and derives the additions each non-Maestro persona needs. The Maestro persona is immutable and can never be a directive target.
-- **Persona source of truth.** Personas live as canonical markdown under `maestro/personas/` (`# Name`, `## Purpose`, `## Responsibilities`, `## Deliverables`, `## Operational Instructions`, `## Interaction Matrix` as `Target | Contract | Handoff`, `## Quality Criteria`). Workspace Mode loads its agents from these governed files, so editing a persona in Architect Mode changes the live agent set. If the files are missing or invalid, Maestro safely falls back to the built-in default catalog. `maestro scaffold-markdown` emits this exact schema, and the immutable Maestro orchestrator is always present.
-- **Default skills and scope.** The bundled workspace ships a canonical skill for every persona under `maestro/skills/<persona-slug>/` (`## Objective`, `## Triggers`, `## Inputs`, `## Outputs`, `## Constraints`) and a starter project scope under `maestro/scopes/` (`## Objective`, `## Business Scope`, `## Deliverables`, `## Acceptance Criteria`, `## Dependencies`). `maestro scaffold-markdown` regenerates the same defaults idempotently without overwriting existing files. Maestro's own skill is shipped read-only because the orchestrator persona is immutable.
+## Workspace Modes
+The Workspace is a single application with **three modes**, switched from the `Tabs` header
+(`F1`/`F2`/`F3`, or `Tab` to cycle). `Esc` quits.
 
-## Onboarding Interview Mode
-The onboarding interview (`maestro interview`, `maestro init`, or `/onboarding`) runs one of two engines, chosen automatically from provider/model availability:
-- **Active (llm-driven) engine** — when a provider model is online, Maestro leads the conversation live, one focused question at a time, to understand your **project idea**, and never imposes creating a persona or file. The default software-house team (Project Manager, User Experience, Quality Assurance, Software Engineer) already exists, so onboarding does not create new personas. As it learns, Maestro periodically **summarizes what it has gathered and asks whether that is enough to proceed to handoff**. If you say it is enough, it proposes the project **scope** file(s) and the **skill** files each default persona needs to deliver the project, then prepares the handoff; if you say it is not enough, it offers a short list of next-step options and keeps gathering, checking again periodically. Proposals are **staged for confirmation**, never written silently. Approve with `y` to write every change through markdown governance; choose `n` to keep talking and let Maestro refine. The immutable Maestro persona is always filtered out of any proposal.
-- **Guided (offline) engine** — when no model is loaded, the scripted/heuristic flow asks a fixed question set and generates a final proposal at the end. This is the fallback path and writes through the same governance and approval gate.
-- **Handoff to build.** Once approved changes are written, Maestro confirms scaffolding is ready, installs the full governed agent team as the Workspace pipeline, and switches the UI to **Workspace Mode**. Your next instruction starts the build with the whole team online.
+### Config Mode (F1)
+The single governance surface. View, create, edit, update, and **archive** both **defaults** and
+**customs** of everything Maestro reads:
+- `maestro/config.yml` (system, providers, models, agent bindings),
+- personas (instructions) under `maestro/personas/`,
+- skills under `maestro/skills/`,
+- project scopes under `maestro/scopes/`.
 
-## Workspace Mode Panels
-The monitor has four panels with explicit roles and a defined flow (input → orchestration → agent activity → readiness/actions). Press `Tab` to cycle focus deterministically.
-- **① Input**: receives slash commands and user prompts.
-- **② Orchestration**: chronological runtime narration. Maestro orchestration events appear here, including the `sense`, `plan`, `delegate`, `audit`, and `deliver` phases (🎼 per transition) and heartbeats (💓 while a worker runs longer than the threshold). The `sense` phase observes the incoming demand before planning. The panel auto-follows the newest interaction; focus it with `Tab` and use `↑`/`↓` (or `PageUp`/`PageDown`, `Home`/`End`) to scroll back through history. `End` snaps back to the latest line and resumes auto-follow.
-- **③ Agent Activity**: agent names and lifecycle status (`idle`, `observe`, `think`, `act`, `error`).
-- **④ Readiness**: readiness checks and recommended next actions.
+Layout: a governance **navigator** (left) listing entries with their `origin` (default/custom) and
+archive state, and an **editor** (right) for the selected entry. Archiving is a soft delete
+(entries move under `maestro/archive/`); the immutable Maestro orchestrator persona can never be
+edited or archived.
 
-## TUI Command-Center Commands
-- `/help`
-- `/architect` — open Architect Mode directive governance (select stage). `/core` is a back-compat alias.
-- `/monitor` — return to Workspace Mode.
-- `/onboarding status`
-- `/onboarding restart user`
-- `/onboarding restart project`
-- `/onboarding skip`
-- `/onboarding continue`
-- `/new scope`
-- `/new persona`
-- `/new skill`
+### Maestro Mode (F2)
+The orchestration monitor. Submit a demand and the **Maestro** persona plans it, delegates to the
+project's default and custom personas, audits their work, and delivers — while you watch.
+Layout: a **Personas** panel (left, per-persona cognitive state: `idle`/`observe`/`think`/`act`/
+`error`) and a **Maestro** panel (right, the current FSM stage plus live narration: plan →
+delegate → audit → deliver, with heartbeats during long work). Approval gates surface here.
 
-## Panel Content Proposals
-- Agent Panel should include provider/model badges and health heartbeat.
-- Logs Panel should support filter presets (`errors`, `handoffs`, `governance`).
-- Command Input should surface command autocomplete and onboarding context hints.
-- Help Panel should show first-run shortcuts and last failed action recovery guidance.
+### Product Mode (F3)
+The live demo. For each shipped release, Maestro runs the built artifact and streams its output.
+Layout: **Releases & Notes** (left, the release list plus the selected release's changelog) and
+**Live Demo** (right, the running artifact's stdout/stderr and exit status).
+
+## Command Footer
+Every mode shows a command footer. Type a demand and press `Enter` to send it as `user_input`;
+prefix with `/` to send a slash command (e.g. `/quit`). Mode switches also notify the core via
+`switch_mode` so it stays in sync.
+
+## Persona source of truth
+Personas live as canonical markdown under `maestro/personas/`. Maestro Mode loads its agent set from
+these governed files, so editing a persona in Config Mode changes the live team. Missing/invalid
+files fall back safely to the built-in default catalog. `maestro scaffold-markdown` emits the schema
+and the immutable Maestro orchestrator is always present.
