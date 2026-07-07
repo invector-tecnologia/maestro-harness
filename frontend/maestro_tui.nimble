@@ -1,10 +1,11 @@
 # Package
-version     = "0.1.0"
-author      = "Invector Tecnologia"
-description = "Maestro Nim/Niobium TUI frontend — renders core state over a stdio JSON protocol."
-license     = "GPL-3.0-only"
-srcDir      = "src"
-bin         = @["maestro_tui"]
+version = "0.1.0"
+author = "Invector Tecnologia"
+description =
+  "Maestro Nim/Niobium TUI frontend — renders core state over a stdio JSON protocol."
+license = "GPL-3.0-only"
+srcDir = "src"
+bin = @["maestro_tui"]
 
 # Dependencies
 requires "nim >= 2.0.0"

@@ -84,7 +84,8 @@ jobs:
       - name: Format check (nph)
         if: steps.guard.outputs.present == 'true'
         run: |
-          nimble install -y nph
+          # Pin nph so CI and local formatting stay byte-for-byte identical.
+          nimble install -y nph@0.7.0
           ~/.nimble/bin/nph --check frontend || (echo "Run 'nph frontend'"; exit 1)
 
       - name: TUI tests (Niobium test backend, no TTY)

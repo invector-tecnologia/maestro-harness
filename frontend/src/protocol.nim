@@ -33,4 +33,3 @@ proc decode*(line: string): JsonNode =
   if version != ProtocolVersion:
     raise newException(ValueError, "unsupported protocol version: " & $version)
   node
-

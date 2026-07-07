@@ -12,13 +12,12 @@ proc demoSnapshot*(): Snapshot =
   ## A placeholder snapshot until the protocol client is wired to the core.
   Snapshot(
     title: "Maestro — Protocol v" & $ProtocolVersion,
-    agents:
-      @[
-        AgentView(name: "Project Manager", state: "idle"),
-        AgentView(name: "Software Engineer", state: "idle"),
-        AgentView(name: "Quality Assurance", state: "idle"),
-        AgentView(name: "User Experience", state: "idle"),
-      ],
+    agents: @[
+      AgentView(name: "Project Manager", state: "idle"),
+      AgentView(name: "Software Engineer", state: "idle"),
+      AgentView(name: "Quality Assurance", state: "idle"),
+      AgentView(name: "User Experience", state: "idle"),
+    ],
     logs: @["awaiting core…"],
     input: "",
   )
