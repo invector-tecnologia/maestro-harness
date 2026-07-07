@@ -11,10 +11,12 @@ use std::path::Path;
 use crate::application::demo_runner;
 use crate::application::governance as gov;
 use crate::application::model_router::model_for;
-use crate::application::orchestrator::{Session, Signal};
+use crate::application::orchestrator::{placeholder_deliverable, Session, Signal};
 use crate::application::persistence;
-use crate::domain::models::default_personas;
 use crate::domain::models::governance::{default_persona_ids, kind_of, GovernanceEntry};
+use crate::domain::models::Message;
+use crate::domain::ports::{CompletionRequest, LlmProvider, ProviderStatus};
+use crate::infrastructure::llm::ProviderRegistry;
 
 use super::{decode, encode, ConfigNode, CoreEvent, Mode, ReleaseSummary, TuiCommand};
 
@@ -118,7 +120,7 @@ fn begin_run(
             .map(|c| model_for(c, persona))
             .unwrap_or_else(|| "default".to_string())
     };
-    let (session, signals) = Session::start(demand, &default_personas(), resolve);
+    let (session, signals) = Session::start(demand, &gov::load_personas(root), resolve);
     let mut prev_stage = "start".to_string();
     map_and_emit(&mut prev_stage, signals, out)?;
     Ok(if session.is_pending() {
@@ -131,6 +133,52 @@ fn begin_run(
     })
 }
 
+/// Build a completer (runtime + provider) only when the default provider is
+/// reachable and serving. `None` means "fall back to deterministic deliverables".
+fn build_completer(
+    root: &Path,
+) -> Option<(tokio::runtime::Runtime, std::sync::Arc<dyn LlmProvider>)> {
+    let config = crate::infrastructure::config::load_from(root).ok()?;
+    let registry = ProviderRegistry::from_config(&config).ok()?;
+    let provider = registry.default_provider(&config)?;
+    let runtime = tokio::runtime::Runtime::new().ok()?;
+    if runtime.block_on(provider.probe()) != ProviderStatus::Available {
+        return None;
+    }
+    Some((runtime, provider))
+}
+
+/// A deliverer that calls the provider for each persona when a model is available,
+/// and falls back to the deterministic placeholder otherwise.
+fn build_deliverer(root: &Path) -> impl Fn(&str, &str, &str) -> String {
+    let completer = build_completer(root);
+    move |persona: &str, model: &str, demand: &str| -> String {
+        if let Some((runtime, provider)) = &completer {
+            let mut messages = Vec::new();
+            if let Ok(system) = Message::system(format!(
+                "You are the {persona} persona on a software team. Deliver your concise contribution to the task."
+            )) {
+                messages.push(system);
+            }
+            if let Ok(user) = Message::user(demand) {
+                messages.push(user);
+            }
+            let request = CompletionRequest {
+                model: model.to_string(),
+                messages,
+            };
+            if let Ok(response) = runtime.block_on(provider.complete(request)) {
+                let text = response.content.trim();
+                if !text.is_empty() {
+                    let first = text.lines().next().unwrap_or(text);
+                    return first.chars().take(200).collect();
+                }
+            }
+        }
+        placeholder_deliverable(persona, model, demand)
+    }
+}
+
 /// Resume a pending run with the user's decision; persists a release on success.
 /// Returns `true` when the run has finished (done, aborted, or rolled back).
 fn resume_run(
@@ -139,7 +187,13 @@ fn resume_run(
     approved: bool,
     out: &mut impl Write,
 ) -> std::io::Result<bool> {
-    let signals = run.session.resume(approved);
+    // Only build the provider-backed deliverer at the execution gate.
+    let signals = if approved && run.session.awaiting_execution() {
+        let deliver = build_deliverer(root);
+        run.session.resume(true, &deliver)
+    } else {
+        run.session.resume(approved, &placeholder_deliverable)
+    };
     map_and_emit(&mut run.prev_stage, signals, out)?;
     if run.session.is_done() {
         match persistence::persist_release(root, run.session.demand(), run.session.deliverables()) {
@@ -316,7 +370,10 @@ pub fn run_core(root: &Path, input: impl BufRead, mut out: impl Write) -> std::i
             message: "Maestro core online".to_string(),
         },
     )?;
-    for persona in default_personas().into_iter().filter(|p| !p.orchestrator) {
+    for persona in gov::load_personas(root)
+        .into_iter()
+        .filter(|p| !p.orchestrator)
+    {
         emit(
             &mut out,
             &CoreEvent::AgentState {

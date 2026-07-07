@@ -9,7 +9,7 @@ use crate::domain::models::governance::{
     default_persona_ids, is_immutable, kind_of, slug, validate_entries, GovernanceEntry,
     GovernanceKind, GovernanceReport, Origin,
 };
-use crate::domain::models::{default_personas, MaestroConfig};
+use crate::domain::models::{default_personas, AgentId, MaestroConfig, Persona};
 
 /// Scan `governance_dir` and validate that `scopes`, `personas`, and `skills`
 /// are present. A missing directory yields a report listing everything as missing.
@@ -238,6 +238,61 @@ pub fn validate(id: &str, body: &str) -> (bool, Vec<String>) {
     }
 }
 
+/// Parse a persona markdown body into a [`Persona`] (custom, non-orchestrator).
+/// Name comes from the first `# ` heading; responsibility from the first line of
+/// the `## Responsibility` section. Returns `None` if there is no name.
+fn parse_custom_persona(body: &str, maestro: &AgentId) -> Option<Persona> {
+    let mut name = String::new();
+    let mut responsibility = String::new();
+    let mut in_responsibility = false;
+    for line in body.lines() {
+        let trimmed = line.trim();
+        if let Some(heading) = trimmed.strip_prefix("# ") {
+            if name.is_empty() {
+                name = heading.trim().to_string();
+            }
+        } else if trimmed.eq_ignore_ascii_case("## responsibility") {
+            in_responsibility = true;
+        } else if trimmed.starts_with("## ") {
+            in_responsibility = false;
+        } else if in_responsibility && responsibility.is_empty() && !trimmed.is_empty() {
+            responsibility = trimmed.to_string();
+        }
+    }
+    if name.is_empty() {
+        return None;
+    }
+    if responsibility.is_empty() {
+        responsibility = format!("Custom persona: {name}.");
+    }
+    let id = AgentId::new(name).ok()?;
+    Persona::new(id, responsibility, vec![maestro.clone()], false).ok()
+}
+
+/// The governed persona catalog: the built-in defaults plus any non-archived
+/// custom personas authored in Config Mode. This is what Maestro Mode routes over.
+pub fn load_personas(root: &Path) -> Vec<Persona> {
+    let mut personas = default_personas();
+    let maestro = match AgentId::new("Maestro") {
+        Ok(id) => id,
+        Err(_) => return personas,
+    };
+    for entry in list(root).unwrap_or_default() {
+        if entry.kind != GovernanceKind::Persona || entry.origin != Origin::Custom || entry.archived
+        {
+            continue;
+        }
+        if let Ok(body) = read(root, &entry.id) {
+            if let Some(persona) = parse_custom_persona(&body, &maestro) {
+                if !personas.iter().any(|existing| existing.id == persona.id) {
+                    personas.push(persona);
+                }
+            }
+        }
+    }
+    personas
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -343,5 +398,42 @@ mod tests {
         assert!(!ok);
         let (ok, _) = validate("scopes/x", "# real");
         assert!(ok);
+    }
+
+    #[test]
+    fn load_personas_merges_defaults_and_customs() {
+        let root = temp_root("catalog");
+        // Defaults only until a custom persona is authored.
+        let before = load_personas(&root);
+        assert!(before.iter().any(|p| p.id.to_string() == "Maestro"));
+        assert!(!before.iter().any(|p| p.id.to_string() == "API Designer"));
+
+        create(
+            &root,
+            "personas/api_designer",
+            "# API Designer\n\n## Responsibility\nDesign REST and gRPC contracts.\n",
+        )
+        .unwrap();
+
+        let after = load_personas(&root);
+        let api = after.iter().find(|p| p.id.to_string() == "API Designer");
+        assert!(api.is_some());
+        assert!(api.unwrap().responsibility.contains("REST"));
+        assert!(!api.unwrap().orchestrator);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn archived_custom_persona_is_excluded_from_catalog() {
+        let root = temp_root("catalog-archived");
+        create(&root, "personas/temp_helper", "# Temp Helper\n").unwrap();
+        assert!(load_personas(&root)
+            .iter()
+            .any(|p| p.id.to_string() == "Temp Helper"));
+        archive(&root, "personas/temp_helper").unwrap();
+        assert!(!load_personas(&root)
+            .iter()
+            .any(|p| p.id.to_string() == "Temp Helper"));
+        std::fs::remove_dir_all(&root).ok();
     }
 }

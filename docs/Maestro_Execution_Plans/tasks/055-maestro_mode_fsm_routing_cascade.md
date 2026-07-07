@@ -51,7 +51,8 @@
 
 ## 6. RESIDUAL RISKS
 * The Approval and Execution gates are auto-advanced here; the blocking IPC approval + rollback land in
-  Phase 4 (tasks 048/049).
+  Phase 4 (tasks 048/049) — delivered in task 056.
 * The lexical scorer stands in for embedding towers; an `infrastructure` embeddings port can replace
   it without changing the ranking contract.
-* Personas are the built-in catalog; loading the governed persona set into routing is a later refinement.
+* ~~Personas are the built-in catalog~~ — resolved: `application::governance::load_personas` merges the
+  built-in defaults with Config Mode custom personas, so Maestro Mode routes over the governed catalog.

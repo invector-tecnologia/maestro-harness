@@ -84,11 +84,13 @@ Implemented modules:
 → Maestro Mode demand → gated FSM orchestration → persisted release → Product Mode live demo.
 
 Recommended follow-ups (not yet started):
-1. Wire the cascade to call the provider registry for real LLM-driven work (deliverables today are
-   deterministic placeholders).
-2. Native **Anthropic** and **Gemini** adapters (OpenAI-compatible only today).
-3. Real environment rollback inverses + a fuller AI safety harness (`src/infrastructure/harness`).
-4. Load the governed persona set into Two-Towers routing (routing uses the built-in catalog today).
+1. Native **Anthropic** and **Gemini** adapters (OpenAI-compatible only today).
+2. Real environment rollback inverses + a fuller AI safety harness (`src/infrastructure/harness`).
+3. Richer cascade prompts: inject persona instructions, skills, scope, and RAG context.
+
+> **Done since RC 0.3.0:** (a) Config Mode custom personas feed Two-Towers routing
+> (`application::governance::load_personas`); (b) the cascade calls the provider registry for **real
+> LLM deliverables** when a model is reachable, with a deterministic fallback (task 059).
 
 ## 7. Known gaps / debt
 

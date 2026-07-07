@@ -35,6 +35,16 @@ pub enum Signal {
     Log { level: String, message: String },
 }
 
+/// Produces a persona's deliverable summary for `(persona, model, demand)`. The
+/// default [`placeholder_deliverable`] is deterministic; the server injects a
+/// provider-backed deliverer when a model is available.
+pub type Deliverer<'a> = dyn Fn(&str, &str, &str) -> String + 'a;
+
+/// The deterministic fallback deliverable (no LLM call).
+pub fn placeholder_deliverable(persona: &str, _model: &str, _demand: &str) -> String {
+    format!("{persona} completed its contribution")
+}
+
 /// Orchestrate a demand into an ordered signal stream, auto-approving both gates.
 /// Deterministic and gate-free view used for headless runs and tests; the gated
 /// [`Session`] powers the interactive server path.
@@ -44,8 +54,8 @@ pub fn orchestrate(
     model_for: impl Fn(&str) -> String,
 ) -> Vec<Signal> {
     let (mut session, mut signals) = Session::start(demand, personas, &model_for);
-    signals.extend(session.resume(true));
-    signals.extend(session.resume(true));
+    signals.extend(session.resume(true, &placeholder_deliverable));
+    signals.extend(session.resume(true, &placeholder_deliverable));
     signals
         .into_iter()
         .filter(|s| !matches!(s, Signal::ApprovalRequest { .. }))
@@ -143,6 +153,11 @@ impl Session {
         self.state == SessionState::Done
     }
 
+    /// Whether the session is blocked specifically on the execution gate.
+    pub fn awaiting_execution(&self) -> bool {
+        self.state == SessionState::AwaitingExecApproval
+    }
+
     /// The originating demand.
     pub fn demand(&self) -> &str {
         &self.demand
@@ -153,8 +168,9 @@ impl Session {
         &self.deliverables
     }
 
-    /// Respond to the current gate; advances or rolls back accordingly.
-    pub fn resume(&mut self, approved: bool) -> Vec<Signal> {
+    /// Respond to the current gate; advances or rolls back accordingly. `deliver`
+    /// produces each persona's deliverable during execution.
+    pub fn resume(&mut self, approved: bool, deliver: &Deliverer) -> Vec<Signal> {
         match self.state {
             SessionState::AwaitingPlanApproval => {
                 if approved {
@@ -165,7 +181,7 @@ impl Session {
             }
             SessionState::AwaitingExecApproval => {
                 if approved {
-                    self.execute()
+                    self.execute(deliver)
                 } else {
                     self.roll_back()
                 }
@@ -204,7 +220,7 @@ impl Session {
     }
 
     /// Execution approved → serial cascade → Verification → deliver.
-    fn execute(&mut self) -> Vec<Signal> {
+    fn execute(&mut self, deliver: &Deliverer) -> Vec<Signal> {
         let mut signals = Vec::new();
         if self.selected.len() > MAX_CASCADE_STEPS {
             self.state = SessionState::Aborted;
@@ -230,7 +246,7 @@ impl Session {
                 persona: persona.clone(),
                 task: format!("address '{}' [{}]", self.demand, model),
             });
-            let summary = format!("{persona} completed its contribution");
+            let summary = deliver(persona, model, &self.demand);
             self.deliverables.push(format!("{persona}: {summary}"));
             signals.push(Signal::Deliverable {
                 persona: persona.clone(),
@@ -379,13 +395,13 @@ mod tests {
             Session::start("improve quality assurance", &default_personas(), |_| {
                 "m".into()
             });
-        let after_plan = session.resume(true);
+        let after_plan = session.resume(true, &placeholder_deliverable);
         assert!(after_plan.iter().any(|s| matches!(
             s,
             Signal::ApprovalRequest { id, .. } if id == Session::EXEC_APPROVAL_ID
         )));
         assert!(session.is_pending() && !session.is_done());
-        let after_exec = session.resume(true);
+        let after_exec = session.resume(true, &placeholder_deliverable);
         assert!(session.is_done());
         assert!(after_exec
             .iter()
@@ -396,7 +412,7 @@ mod tests {
     #[test]
     fn rejecting_the_plan_aborts_without_work() {
         let (mut session, _) = Session::start("x", &default_personas(), |_| "m".into());
-        let signals = session.resume(false);
+        let signals = session.resume(false, &placeholder_deliverable);
         assert!(!session.is_pending() && !session.is_done());
         assert!(signals
             .iter()
@@ -409,8 +425,8 @@ mod tests {
             Session::start("improve quality assurance", &default_personas(), |_| {
                 "m".into()
             });
-        let _ = session.resume(true); // approve plan → exec gate
-        let signals = session.resume(false); // reject execution
+        let _ = session.resume(true, &placeholder_deliverable); // approve plan → exec gate
+        let signals = session.resume(false, &placeholder_deliverable); // reject execution
         let rollbacks: Vec<&String> = signals
             .iter()
             .filter_map(|s| match s {
@@ -420,5 +436,18 @@ mod tests {
             .collect();
         assert!(!rollbacks.is_empty());
         assert!(!session.is_done());
+    }
+
+    #[test]
+    fn injected_deliverer_output_flows_into_deliverables() {
+        let (mut session, _) = Session::start("build a cli", &default_personas(), |_| "m".into());
+        let _ = session.resume(true, &placeholder_deliverable); // plan → exec gate
+        let signals = session.resume(true, &|persona: &str, _model: &str, _demand: &str| {
+            format!("REAL:{persona}")
+        });
+        assert!(signals.iter().any(
+            |s| matches!(s, Signal::Deliverable { summary, .. } if summary.starts_with("REAL:"))
+        ));
+        assert!(session.deliverables().iter().any(|d| d.contains("REAL:")));
     }
 }
