@@ -8,7 +8,7 @@ Outcome: faster delivery with coordinated agent execution.
 Capabilities:
 - Multi-agent Observe/Think/Act runtime.
 - Persona orchestration and handoff matrix.
-- TUI command center and creation wizards.
+- Three-mode Workspace TUI (Config · Maestro · Product).
 
 ## 2. Governance and Compliance
 Outcome: safer and auditable AI-assisted engineering.
@@ -18,12 +18,12 @@ Capabilities:
 - Strict conventions for error handling and observability.
 - Readiness checks and release quality gates.
 
-## 3. User Onboarding and Adoption
-Outcome: lower onboarding friction and faster first value.
+## 3. Setup and Adoption
+Outcome: lower setup friction and faster first value.
 
 Capabilities:
-- User and project onboarding flows.
-- Resume state machine and skip/continue controls.
+- Plain-CLI `maestro init` bootstrap (no interview).
+- Config Mode governance (create/edit/update/archive personas, skills, scopes).
 - Practical guides and smoke-test playbooks.
 
 ## 4. Operations and Extensibility

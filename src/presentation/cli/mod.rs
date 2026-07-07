@@ -119,6 +119,12 @@ providers:
     endpoint: "http://127.0.0.1:11434/v1"
     models:
       - name: mistral
+  # Optional cloud provider (set OPENAI_API_KEY in the environment, never here):
+  # openai:
+  #   kind: openai
+  #   endpoint: "https://api.openai.com/v1"
+  #   models:
+  #     - name: gpt-4o-mini
 "#;
 
 fn validate_config(root: &Path) -> anyhow::Result<()> {

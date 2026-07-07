@@ -8,7 +8,7 @@ Fire up the TUI. Define your personas, scopes, and skills. Watch your AI team sy
 
 > 🚧 **PRE-RELEASE / ACTIVE DEVELOPMENT**
 >
-> Maestro **0.1.0** is a **Minimum Lovable Product (MLP)**. Core runtime features are functional and tested, but many capabilities remain in development. This is **not production-ready software**. See [Feature Status](#-feature-status) below for detailed maturity levels. Expect breaking changes and incomplete workflows.
+> Maestro **0.3.0** ships the **three-mode Workspace** (Config · Maestro · Product) end-to-end, but remains **pre-release**. The orchestration cascade produces deterministic placeholder deliverables (real LLM-driven work through the provider registry is the next milestone). This is **not production-ready software**. See [Feature Status](#-feature-status) below. Expect breaking changes.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/invector-tecnologia/maestro-ai-harness/main/docs/assets/dream-tui.png" alt="Maestro Dream TUI" width="800">
@@ -31,8 +31,8 @@ Fire up the TUI. Define your personas, scopes, and skills. Watch your AI team sy
 Maestro's brain is **Rust-native**. Fast. Uncompromising. Its interactive **TUI** (Terminal User Interface) is a separate Nim process that consumes [Niobium](https://github.com/invector-tecnologia/niobium) — an immediate-mode, ratatui-inspired Nim TUI library — delivering menus, tables, real-time logs, and keyboard shortcuts over a line-delimited JSON protocol, all without terminal bloat or command memorization. The core stays fully usable headless with `--no-tui`.
 
 ### ⚡ What You Control
-* **🚧 Multi-Provider AI Synthesis:** Run models locally and free with **Ollama** (no API key) — the reference adapter is **operational** and resolved through the provider registry. **OpenAI**, **Anthropic**, and **Google Gemini** adapters are planned for v0.2+. Configuration supports **per-agent model routing** (each persona can pin a provider + model); unlisted personas fall back to `system.default_provider`/`default_model`, and Maestro **fails fast** on startup if a referenced pair is undeclared.
-* **🚧 Governance Codex (In Progress):** Define *Personas* (AI profiles), *Scopes* (execution domains), *Skills* (tool capabilities). The default persona catalog and required-field creation wizards work; the full skill system and compliance enforcement are in development.
+* **🚧 Multi-Provider AI Synthesis:** Run models locally and free with **Ollama** (no API key) — the reference adapter is **operational** and resolved through the provider registry. An **OpenAI-compatible** adapter is also operational (key via `OPENAI_API_KEY`, never config files); native **Anthropic** and **Google Gemini** adapters are planned. Configuration supports **per-agent model routing** (each persona can pin a provider + model); unlisted personas fall back to `system.default_provider`/`default_model`, and Maestro **fails fast** on startup if a referenced pair is undeclared.
+* **🚧 Governance Codex (Config Mode):** Define *Personas* (AI profiles), *Scopes* (execution domains), *Skills* (tool capabilities). **Config Mode** is the single governance surface — view, create, edit, update, and **archive** both defaults and customs; the Maestro orchestrator persona is immutable. Deeper skill schemas and compliance enforcement are in development.
 * **📋 Secure Credentials (Planned):** OAuth2 browser login to Google Gemini planned. Basic local config auth operational; keychain integration roadmap v0.2+.
 * **✅ Agent Observability (Operational):** Structured `tracing` narration of the `observe → think → act` cognitive cycle is implemented. Cost tracking and full audit logs planned for v0.2+.
 
@@ -55,7 +55,7 @@ maestro deps check --scope all          # Full validation
 
 ## ⚡ FEATURE STATUS
 
-Maestro's capabilities are organized by maturity level. **Current release: 0.1.0 (Foundational + partial Core)**
+Maestro's capabilities are organized by maturity level. **Current release: 0.3.0 (three-mode Workspace)**
 
 | Level | Status | Examples |
 |-------|--------|----------|
@@ -181,7 +181,7 @@ agents:
 3. **INSPECT** — `maestro list-agents` catalogs the registered personas; `maestro doctor` runs readiness checks (configuration + governance scaffold).
 4. **HEADLESS** — every command accepts the global `--no-tui` flag for CI/automation.
 
-> **Planned (v0.2+):** `maestro init` (plain-CLI bootstrap), `maestro tui`, and `maestro run` — the interactive three-mode Nim/Niobium Workspace (Config · Maestro · Product) over the stdio protocol. Interview/onboarding mode was removed; see [ADR 0002](docs/adr/0002-three-mode-workspace-and-interview-removal.md).
+> **Interactive Workspace (0.3.0):** `maestro init` (plain-CLI bootstrap), `maestro tui`, and `maestro run` — the three-mode Nim/Niobium Workspace (Config · Maestro · Product) over the stdio protocol v2. Interview/onboarding mode was removed; see [ADR 0002](docs/adr/0002-three-mode-workspace-and-interview-removal.md).
 
 ### ⚡ Utility Commands (0.1.0)
 

@@ -13,6 +13,7 @@ use crate::domain::models::config::{MaestroConfig, ProviderConfig};
 use crate::domain::ports::LlmProvider;
 
 use super::ollama::OllamaProvider;
+use super::openai::OpenAiProvider;
 
 /// Default per-request provider timeout.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(60);
@@ -84,6 +85,16 @@ fn build_provider(
                 })?;
             Ok(Arc::new(provider))
         }
+        "openai" => {
+            // Cloud keys come from the environment, never config files.
+            let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_default();
+            let provider = OpenAiProvider::new(&config.endpoint, api_key, DEFAULT_TIMEOUT)
+                .map_err(|source| FactoryError::Build {
+                    key: key.to_string(),
+                    source,
+                })?;
+            Ok(Arc::new(provider))
+        }
         other => Err(FactoryError::UnsupportedKind(other.to_string())),
     }
 }
@@ -130,5 +141,15 @@ mod tests {
         let config = config_with_kind("mystery");
         let result = ProviderRegistry::from_config(&config);
         assert!(matches!(result, Err(FactoryError::UnsupportedKind(k)) if k == "mystery"));
+    }
+
+    #[test]
+    fn builds_and_resolves_openai() {
+        let mut config = config_with_kind("openai");
+        config.providers.get_mut("ollama").unwrap().endpoint =
+            "https://api.openai.com/v1".to_string();
+        let registry = ProviderRegistry::from_config(&config).unwrap();
+        assert_eq!(registry.len(), 1);
+        assert!(registry.resolve("ollama").is_some());
     }
 }

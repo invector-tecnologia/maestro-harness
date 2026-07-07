@@ -1,6 +1,6 @@
 # Canonical Cognitive Pattern
 
-Maestro models **every** agent — personas, onboarding, retrieval, and the
+Maestro models **every** agent — personas, retrieval, and the
 orchestrator itself — on one shared cognitive cycle. This document is the
 canonical reference for that pattern and where it is implemented.
 
@@ -39,11 +39,9 @@ agents collaborate.
 - `readiness::probe_default_provider` / `run_checks_with_probe`
   (`src/application/readiness.rs`) lift the probe into the readiness signal
   `model_loaded`.
-- Onboarding consumes the probe to choose an interview engine:
-  `InterviewEngine::from_provider_status` (`src/application/interview_bot.rs`)
-  selects the LLM-driven interview (Option B) when a model is serving and the
-  deterministic guided setup (Option A) otherwise, auto-promoting once a model
-  becomes available.
+- The orchestrator `Session` (`src/application/orchestrator.rs`) uses provider
+  readiness during Ideation/Planning before committing personas to the serial
+  cascade.
 
 ### Orchestration stages (`SENSE → … → AUDIT → DELIVER`)
 

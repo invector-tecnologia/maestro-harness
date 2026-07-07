@@ -4,6 +4,7 @@
 ## state is supplied by the protocol client (`config_tree` / `config_entry`).
 
 import niobium
+import ../theme
 
 type
   ConfigEntryView* = object ## One governance entry row.
@@ -28,10 +29,10 @@ proc renderConfig*(f: var Frame, area: Rect, s: ConfigState) =
     nav.add(marker & e.origin & "/" & e.kind & ": " & e.id & arch & "\n")
   if s.entries.len == 0:
     nav = "no governance entries\n"
-  let navBlk = initBlock(title = " Governance ", borders = AllBorders)
+  let navBlk = initBlock(title = panelTitle("Governance"), borders = panelBorders())
   f.renderWidget(navBlk, cols[0])
-  f.renderWidget(paragraph(nav), navBlk.inner(cols[0]))
+  f.renderWidget(paragraph(asciiHeader("Governance") & nav), navBlk.inner(cols[0]))
 
-  let edBlk = initBlock(title = " Editor ", borders = AllBorders)
+  let edBlk = initBlock(title = panelTitle("Editor"), borders = panelBorders())
   f.renderWidget(edBlk, cols[1])
-  f.renderWidget(paragraph(s.body), edBlk.inner(cols[1]))
+  f.renderWidget(paragraph(asciiHeader("Editor") & s.body), edBlk.inner(cols[1]))

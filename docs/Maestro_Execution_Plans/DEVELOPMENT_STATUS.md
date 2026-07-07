@@ -18,19 +18,22 @@ a headless **Rust core** (hexagonal DDD: `domain` → `application` → `infrast
 
 ## 2. Current state (verified green)
 
-**Phase 0 (bootstrap) + Phase 1 (Milestone 0.1.0) are COMPLETE.**
-Gates: `cargo fmt/clippy/test` = **57 unit + 1 boundary** pass; `nimble test` = **6** pass;
-`scripts/quality-gate.sh` = OK.
+**Phases 0–6 COMPLETE — the three-mode Workspace (RC 0.3.0).**
+Gates: `cargo fmt/clippy/test` = **116 unit + 1 boundary** pass; `nimble test` = **21** pass;
+`scripts/quality-gate.sh` = OK. See [RELEASE_CANDIDATE_0.3.0.md](RELEASE_CANDIDATE_0.3.0.md).
 
 Implemented modules:
-- `src/domain/models/` — `agent_id`, `message`, `governance`, `config`, `persona`.
+- `src/domain/models/` — `agent_id`, `message`, `governance` (kinds/origin/immutability), `config`,
+  `persona`, `fsm` (six-stage lifecycle), `routing` (Two-Towers), `rollback`.
 - `src/domain/ports/` — `llm_provider` (probe/complete), `role` (observe→think→act).
-- `src/application/` — `agent_runtime` (concurrent cycle, failure isolation), `agent_observability`
-  (`RuntimeEvent`), `persona_agent`, `readiness` (SENSE), `governance`, `wizard`, `error`.
-- `src/infrastructure/` — `bus/broadcast_bus`, `llm/ollama`, `llm/registry`, `config` loader.
-- `src/presentation/` — `cli` (version/validate-config/list-agents/doctor/scaffold-markdown/init-config, `--no-tui`),
-  `ipc` (versioned `CoreEvent`/`TuiCommand` + framing).
-- `frontend/` — `app.nim`, `protocol.nim` (mirrors `ipc`), `panels/dashboard.nim`; tests in `frontend/tests/`.
+- `src/application/` — `agent_runtime`, `agent_observability` (`RuntimeEvent`), `persona_agent`,
+  `readiness` (SENSE), `governance` (CRUD + archive), `orchestrator` (`Session` gated FSM + Two-Towers
+  + serial cascade), `model_router`, `persistence` (git-standalone releases), `demo_runner`, `error`.
+- `src/infrastructure/` — `bus/broadcast_bus`, `llm/ollama`, `llm/openai`, `llm/registry`, `config`.
+- `src/presentation/` — `cli` (version/validate-config/list-agents/doctor/scaffold-markdown/init-config/
+  **init**/**run**/**tui**, `--no-tui`), `ipc` (v2 `CoreEvent`/`TuiCommand` + `server`).
+- `frontend/` — `app.nim` (tick loop), `protocol.nim` (v2), `workspace.nim`, `theme.nim`,
+  `panels/{config,maestro,product}.nim`; tests in `frontend/tests/`.
 - Tooling — `scripts/quality-gate.sh`, `scripts/build-deb.sh`, `scripts/install-niobium.sh`.
 
 ## 3. Task ledger (docs/Maestro_Execution_Plans/tasks/)
@@ -47,7 +50,7 @@ Implemented modules:
 | 040, 041 | Mode naming + Nim module split | 🔁 REWRITTEN for the three modes |
 | 033–034, 036–039, 042 | Governance / orchestration / multi-model harness | ⏳ kept, not started |
 | 046–050 | Micro-project engine (FSM→cascade→rollback→git) | ⏳ kept, not started |
-| W1–W6 | **Workspace pivot** (init CLI, IPC v2, Config/Maestro/Product) | 🚧 W1 (053) + W2 (054) done; W3–W6 next |
+| W1–W6 | **Workspace pivot** (init CLI, IPC v2, Config/Maestro/Product) | ✅ W1–W6 (053–058) done — RC 0.3.0 |
 
 ## 4. Key sequencing decisions (already applied)
 
@@ -70,31 +73,31 @@ Implemented modules:
    `nimble test` in `frontend/`.
 5. **Record** — update the task's evidence section.
 
-## 6. Recommended next steps (in order)
+## 6. Status & next steps
 
-> **Direction change (2026-07-07):** Maestro pivots to a **three-mode Workspace** — Config Mode,
-> Maestro Mode, Product Mode — and **removes interview/onboarding mode entirely**. See
-> [ADR 0002](../adr/0002-three-mode-workspace-and-interview-removal.md) and
-> [ADR 0003](../adr/0003-ipc-v2-mode-scoped-protocol.md). The seven-phase execution plan lives in
-> the session plan; the workspace tasks are labelled `W1–W6` in the ledger above.
+> **Direction change (2026-07-07):** Maestro pivoted to a **three-mode Workspace** — Config Mode,
+> Maestro Mode, Product Mode — and **removed interview/onboarding mode entirely** (ADR
+> [0002](../adr/0002-three-mode-workspace-and-interview-removal.md) /
+> [0003](../adr/0003-ipc-v2-mode-scoped-protocol.md)).
 
-1. **W1 — Wire the boundary + shell (Phase 1):** IPC v1→v2 (ADR 0003), long-running `maestro run`/
-   `tui`, Nim tick loop + `Tabs` Workspace shell, and the plain-CLI `maestro init` bootstrap.
-2. **W2 — Config Mode (Phase 2):** governance CRUD + archive (config.yml + personas/skills/scopes,
-   defaults and customs) with a unified markdown parser (absorbs 037/038; Architect Mode retired).
-3. **W3 — Maestro Mode (Phase 3):** FSM engine (046) + meta-orchestrator (039) + Two-Towers (047) +
-   serial cascade (048) + `ModelRouter` (042). Agents: `Cascade Runner`, `Persona Instrumenter`.
-4. **W4 — Governed execution (Phase 4):** approval gates, rollback (049), git persistence (050),
-   safety harness (033/034). Agents: `Cascade Runner`, `Rollback Planner`.
-5. **W5 — Product Mode (Phase 5):** release model + demo runner (live artifact stream) + changelog.
-6. **W6 — Providers / accessibility / packaging / RC (Phase 6).**
+**W1–W6 (tasks 053–058) are COMPLETE — RC 0.3.0.** The Workspace runs end-to-end: `maestro init`
+→ Maestro Mode demand → gated FSM orchestration → persisted release → Product Mode live demo.
+
+Recommended follow-ups (not yet started):
+1. Wire the cascade to call the provider registry for real LLM-driven work (deliverables today are
+   deterministic placeholders).
+2. Native **Anthropic** and **Gemini** adapters (OpenAI-compatible only today).
+3. Real environment rollback inverses + a fuller AI safety harness (`src/infrastructure/harness`).
+4. Load the governed persona set into Two-Towers routing (routing uses the built-in catalog today).
 
 ## 7. Known gaps / debt
 
-- `maestro run` and `maestro tui` are not wired to the IPC boundary yet (stubs / planned).
-- Only the **Ollama** provider adapter exists; OpenAI/Anthropic/Gemini are planned (registry supports the `ollama` kind only).
+- Cascade deliverables are deterministic placeholders — not yet real LLM output through the registry.
+- Provider adapters: **Ollama** (default) + **OpenAI-compatible** (`openai`, key via `OPENAI_API_KEY`);
+  native Anthropic/Gemini adapters are future.
 - Agent cognitive cycles are concurrent (`JoinSet`, read-only); the **serial cascade** rule applies to
-  environment-affecting execution (task 048), enforced separately — do not "fix" the runtime to be serial.
-- **Niobium** is not on the nimble registry: `frontend/*.nimble` uses bare `requires "niobium"`; install the
-  exact pinned commit with `scripts/install-niobium.sh` (commit `0051e112…` = tag v0.1.0).
-- RC docs: refresh test-count evidence at each release gate (016 = 0.1.0, 031 = 0.2.0).
+  environment-affecting execution (enforced by the orchestrator `Session`) — do not "fix" the runtime.
+- **Niobium** is not on the nimble registry: `frontend/*.nimble` uses bare `requires "niobium"`; install
+  the exact pinned commit with `scripts/install-niobium.sh` (commit `0051e112…` = tag v0.1.0).
+- `nph` formatting check is advisory where `nph` is unavailable in the environment.
+- RC docs: refresh test-count evidence at each release gate (016 = 0.1.0, 058 = 0.3.0).

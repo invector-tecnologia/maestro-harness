@@ -1,5 +1,10 @@
 # Release Candidate 0.2.0
 
+> **⚠️ SUPERSEDED / RETIRED (2026-07-07).** The 0.2.0 onboarding/interview milestone was cut by ADR
+> [0002](../adr/0002-three-mode-workspace-and-interview-removal.md). Maestro pivoted to the three-mode
+> Workspace; see [RELEASE_CANDIDATE_0.3.0.md](RELEASE_CANDIDATE_0.3.0.md). This document is retained
+> for historical context only and does not describe shipped behavior.
+
 ## Scope
 - First-run user onboarding in Niobium.
 - Skip redirect to project onboarding.

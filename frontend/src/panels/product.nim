@@ -5,6 +5,7 @@
 ## (`release_list` / `demo_output` / `demo_exited`).
 
 import niobium
+import ../theme
 
 type
   ReleaseView* = object ## One shipped release.
@@ -29,13 +30,13 @@ proc renderProduct*(f: var Frame, area: Rect, s: ProductState) =
     rel = "no releases shipped\n"
   elif s.selected >= 0 and s.selected < s.releases.len:
     rel.add("\n" & s.releases[s.selected].changelog & "\n")
-  let relBlk = initBlock(title = " Releases & Notes ", borders = AllBorders)
+  let relBlk = initBlock(title = panelTitle("Releases & Notes"), borders = panelBorders())
   f.renderWidget(relBlk, cols[0])
-  f.renderWidget(paragraph(rel), relBlk.inner(cols[0]))
+  f.renderWidget(paragraph(asciiHeader("Releases & Notes") & rel), relBlk.inner(cols[0]))
 
   var outText = (if s.running: "[running]\n" else: "[idle]\n")
   for line in s.output:
     outText.add(line & "\n")
-  let demoBlk = initBlock(title = " Live Demo ", borders = AllBorders)
+  let demoBlk = initBlock(title = panelTitle("Live Demo"), borders = panelBorders())
   f.renderWidget(demoBlk, cols[1])
-  f.renderWidget(paragraph(outText), demoBlk.inner(cols[1]))
+  f.renderWidget(paragraph(asciiHeader("Live Demo") & outText), demoBlk.inner(cols[1]))

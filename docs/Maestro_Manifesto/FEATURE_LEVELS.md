@@ -25,10 +25,10 @@ Features:
 Target: teams scaling adoption and governance.
 
 Features:
-- Guided onboarding with resume state machine.
-- Accessibility controls (ASCII fallback) and local telemetry opt-in.
+- Three-mode Workspace (Config · Maestro · Product) over the stdio protocol v2.
+- Governed execution: approval gates, rollback, and git-standalone release persistence.
+- Accessibility controls (ASCII fallback via `MAESTRO_ASCII_ONLY`).
 - Cross-platform packaging and smoke-test workflows.
-- Operational wizard hardening and progressive checkpointing.
 
 ## Enterprise Level
 Target: broad organizational rollout.
@@ -39,7 +39,7 @@ Features (roadmap-oriented):
 - Expanded reliability automation and audit analytics.
 
 ## Traceability
-- Runtime and personas: `src/application/agent_runtime.rs`, `src/application/persona_operations.rs`.
-- TUI and onboarding: `src/presentation/tui/mod.rs`.
+- Runtime and personas: `src/application/agent_runtime.rs`, `src/application/orchestrator.rs`.
+- TUI: `frontend/src/` (Nim/Niobium); IPC: `src/presentation/ipc/`.
 - CLI operations: `src/presentation/cli/mod.rs`.
 - Packaging and quality gates: `scripts/quality-gate.sh`, `scripts/build-*.sh`.

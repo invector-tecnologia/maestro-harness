@@ -43,7 +43,7 @@ widgets (Block, Paragraph, List, Table, Tabs, Clear, Gauge, Sparkline, BarChart,
 and constraint layout (`Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill`).
 
 ## 3. Canonical Cognitive Pattern
-Every agent — personas, onboarding, retrieval, and the orchestrator — runs the same
+Every agent — personas, retrieval, and the orchestrator — runs the same
 cognitive cycle: **SENSE → OBSERVE → THINK → ACT → AUDIT → DELIVER**. The innermost
 `observe → think → act` loop is the `Role` trait; `SENSE`, `AUDIT`, and `DELIVER` are
 orchestration-level stages that wrap it during collaboration. See

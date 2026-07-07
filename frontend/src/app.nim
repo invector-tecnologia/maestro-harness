@@ -98,8 +98,15 @@ proc handleKey(s: var WorkspaceState, ev: KeyEvent, inStream: Stream) =
       if rel.len > 0:
         inStream.sendCommand("run_demo", %*{"release": rel})
   of kcChar:
-    if ev.mods.card == 0 or ev.mods == {kmShift}:
-      s.input.add($ev.rune)
+    let ch = $ev.rune
+    if s.modeName == "maestro" and s.hasPendingApproval and ch in ["y", "Y", "n", "N"]:
+      let approved = ch in ["y", "Y"]
+      inStream.sendCommand(
+        "approval_response", %*{"id": s.maestro.approvalId, "approved": approved}
+      )
+      s.clearApproval()
+    elif ev.mods.card == 0 or ev.mods == {kmShift}:
+      s.input.add(ch)
   else:
     discard
 

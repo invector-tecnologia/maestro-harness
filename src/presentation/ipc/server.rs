@@ -8,11 +8,15 @@
 use std::io::{BufRead, Write};
 use std::path::Path;
 
+use crate::application::demo_runner;
 use crate::application::governance as gov;
+use crate::application::model_router::model_for;
+use crate::application::orchestrator::{Session, Signal};
+use crate::application::persistence;
 use crate::domain::models::default_personas;
 use crate::domain::models::governance::{default_persona_ids, kind_of, GovernanceEntry};
 
-use super::{decode, encode, ConfigNode, CoreEvent, Mode, TuiCommand};
+use super::{decode, encode, ConfigNode, CoreEvent, Mode, ReleaseSummary, TuiCommand};
 
 /// Serialize and write a single event, flushing so the TUI sees it promptly.
 fn emit(out: &mut impl Write, event: &CoreEvent) -> std::io::Result<()> {
@@ -49,6 +53,111 @@ fn emit_tree(root: &Path, out: &mut impl Write) -> std::io::Result<()> {
     emit(out, &CoreEvent::ConfigTree { entries: nodes })
 }
 
+/// An in-progress, gated orchestration awaiting a user approval.
+struct PendingRun {
+    session: Session,
+    prev_stage: String,
+}
+
+/// Map orchestration signals to IPC events and emit them, tracking FSM transitions.
+fn map_and_emit(
+    prev: &mut String,
+    signals: Vec<Signal>,
+    out: &mut impl Write,
+) -> std::io::Result<()> {
+    for signal in signals {
+        let event = match signal {
+            Signal::Stage(stage) => {
+                let event = CoreEvent::FsmTransition {
+                    from: prev.clone(),
+                    to: stage.as_str().to_string(),
+                };
+                *prev = stage.as_str().to_string();
+                event
+            }
+            Signal::Plan(steps) => CoreEvent::PlanProposed { steps },
+            Signal::Agent { persona, state } => CoreEvent::AgentState {
+                agent: persona,
+                state,
+            },
+            Signal::Delegation { persona, task } => CoreEvent::Delegation { persona, task },
+            Signal::Deliverable { persona, summary } => CoreEvent::Deliverable {
+                persona,
+                summary,
+                artifact: None,
+            },
+            Signal::ApprovalRequest { id, prompt } => CoreEvent::ApprovalRequest { id, prompt },
+            Signal::Rollback { action } => CoreEvent::Log {
+                level: "warn".to_string(),
+                message: format!("rollback: {action}"),
+            },
+            Signal::Log { level, message } => CoreEvent::Log { level, message },
+        };
+        emit(out, &event)?;
+    }
+    Ok(())
+}
+
+/// Begin a gated orchestration for `demand`; returns the pending run if it blocks.
+fn begin_run(
+    root: &Path,
+    demand: &str,
+    out: &mut impl Write,
+) -> std::io::Result<Option<PendingRun>> {
+    emit(
+        out,
+        &CoreEvent::Log {
+            level: "info".to_string(),
+            message: format!("demand received: {demand}"),
+        },
+    )?;
+    let config = crate::infrastructure::config::load_from(root).ok();
+    let resolve = |persona: &str| -> String {
+        config
+            .as_ref()
+            .map(|c| model_for(c, persona))
+            .unwrap_or_else(|| "default".to_string())
+    };
+    let (session, signals) = Session::start(demand, &default_personas(), resolve);
+    let mut prev_stage = "start".to_string();
+    map_and_emit(&mut prev_stage, signals, out)?;
+    Ok(if session.is_pending() {
+        Some(PendingRun {
+            session,
+            prev_stage,
+        })
+    } else {
+        None
+    })
+}
+
+/// Resume a pending run with the user's decision; persists a release on success.
+/// Returns `true` when the run has finished (done, aborted, or rolled back).
+fn resume_run(
+    root: &Path,
+    run: &mut PendingRun,
+    approved: bool,
+    out: &mut impl Write,
+) -> std::io::Result<bool> {
+    let signals = run.session.resume(approved);
+    map_and_emit(&mut run.prev_stage, signals, out)?;
+    if run.session.is_done() {
+        match persistence::persist_release(root, run.session.demand(), run.session.deliverables()) {
+            Ok(record) => emit(
+                out,
+                &CoreEvent::Log {
+                    level: "info".to_string(),
+                    message: format!("release {} persisted ({})", record.version, record.id),
+                },
+            )?,
+            Err(e) => warn(out, format!("persistence failed: {e}"))?,
+        }
+        Ok(true)
+    } else {
+        Ok(!run.session.is_pending())
+    }
+}
+
 /// A warning log line.
 fn warn(out: &mut impl Write, message: String) -> std::io::Result<()> {
     emit(
@@ -61,28 +170,33 @@ fn warn(out: &mut impl Write, message: String) -> std::io::Result<()> {
 }
 
 /// Handle one command. Returns `Ok(true)` when the loop should stop.
-fn handle(root: &Path, command: &TuiCommand, out: &mut impl Write) -> std::io::Result<bool> {
+fn handle(
+    root: &Path,
+    command: &TuiCommand,
+    pending: &mut Option<PendingRun>,
+    out: &mut impl Write,
+) -> std::io::Result<bool> {
     match command {
         TuiCommand::SwitchMode { mode } => emit(out, &CoreEvent::ModeChanged { mode: *mode })?,
         TuiCommand::UserInput { text } => {
-            emit(
-                out,
-                &CoreEvent::PlanProposed {
-                    steps: vec![
-                        format!("understand: {text}"),
-                        "delegate to personas".to_string(),
-                        "audit deliverables".to_string(),
-                        "deliver".to_string(),
-                    ],
-                },
-            )?;
-            emit(
-                out,
-                &CoreEvent::Log {
-                    level: "info".to_string(),
-                    message: format!("demand received: {text}"),
-                },
-            )?;
+            if pending.is_some() {
+                warn(
+                    out,
+                    "a run is awaiting approval — respond first".to_string(),
+                )?;
+            } else {
+                *pending = begin_run(root, text, out)?;
+            }
+        }
+        TuiCommand::ApprovalResponse { approved, .. } => {
+            if let Some(run) = pending.as_mut() {
+                let finished = resume_run(root, run, *approved, out)?;
+                if finished {
+                    *pending = None;
+                }
+            } else {
+                warn(out, "no pending approval".to_string())?;
+            }
         }
         TuiCommand::Command { name } if name == "quit" || name == "exit" => return Ok(true),
         TuiCommand::Command { name } => emit(
@@ -146,8 +260,36 @@ fn handle(root: &Path, command: &TuiCommand, out: &mut impl Write) -> std::io::R
             Err(e) => warn(out, e.to_string())?,
         },
 
-        // --- Product Mode (populated in Phase 5) ---
-        TuiCommand::ListReleases => emit(out, &CoreEvent::ReleaseList { releases: vec![] })?,
+        // --- Product Mode ---
+        TuiCommand::ListReleases => {
+            let releases = persistence::list_releases(root)
+                .into_iter()
+                .map(|r| ReleaseSummary {
+                    version: r.version,
+                    changelog: r.changelog,
+                    created_at: r.created_at,
+                })
+                .collect();
+            emit(out, &CoreEvent::ReleaseList { releases })?;
+        }
+        TuiCommand::RunDemo { release } => {
+            let result = demo_runner::run_demo(root, release, |stream, chunk| {
+                emit(
+                    out,
+                    &CoreEvent::DemoOutput {
+                        stream: stream.to_string(),
+                        chunk: chunk.to_string(),
+                    },
+                )
+            });
+            match result {
+                Ok(code) => emit(out, &CoreEvent::DemoExited { code })?,
+                Err(e) => {
+                    warn(out, format!("demo failed: {e}"))?;
+                    emit(out, &CoreEvent::DemoExited { code: -1 })?;
+                }
+            }
+        }
         other => emit(
             out,
             &CoreEvent::Log {
@@ -184,6 +326,7 @@ pub fn run_core(root: &Path, input: impl BufRead, mut out: impl Write) -> std::i
         )?;
     }
 
+    let mut pending: Option<PendingRun> = None;
     for line in input.lines() {
         let line = line?;
         if line.trim().is_empty() {
@@ -191,7 +334,7 @@ pub fn run_core(root: &Path, input: impl BufRead, mut out: impl Write) -> std::i
         }
         match decode::<TuiCommand>(&line) {
             Ok(command) => {
-                if handle(root, &command, &mut out)? {
+                if handle(root, &command, &mut pending, &mut out)? {
                     break;
                 }
             }
@@ -361,6 +504,92 @@ mod tests {
         assert!(events(&out)
             .iter()
             .any(|e| matches!(e, CoreEvent::Log { level, .. } if level == "warn")));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn approval_flow_completes_and_persists_a_release() {
+        let root = temp_root("approve");
+        let evs = run(
+            &root,
+            &[
+                TuiCommand::UserInput {
+                    text: "improve quality assurance".to_string(),
+                },
+                TuiCommand::ApprovalResponse {
+                    id: "approve-plan".to_string(),
+                    approved: true,
+                },
+                TuiCommand::ApprovalResponse {
+                    id: "approve-exec".to_string(),
+                    approved: true,
+                },
+            ],
+        );
+        assert!(evs
+            .iter()
+            .any(|e| matches!(e, CoreEvent::ApprovalRequest { .. })));
+        assert!(evs
+            .iter()
+            .any(|e| matches!(e, CoreEvent::Deliverable { persona, .. } if persona == "Maestro")));
+        assert!(root.join("maestro/releases/r001/manifest.md").exists());
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn rejecting_the_plan_emits_no_delegation() {
+        let root = temp_root("reject");
+        let evs = run(
+            &root,
+            &[
+                TuiCommand::UserInput {
+                    text: "build".to_string(),
+                },
+                TuiCommand::ApprovalResponse {
+                    id: "approve-plan".to_string(),
+                    approved: false,
+                },
+            ],
+        );
+        assert!(!evs
+            .iter()
+            .any(|e| matches!(e, CoreEvent::Delegation { .. })));
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn product_mode_lists_and_runs_a_release() {
+        let root = temp_root("product");
+        let evs = run(
+            &root,
+            &[
+                TuiCommand::UserInput {
+                    text: "build a cli".to_string(),
+                },
+                TuiCommand::ApprovalResponse {
+                    id: "approve-plan".to_string(),
+                    approved: true,
+                },
+                TuiCommand::ApprovalResponse {
+                    id: "approve-exec".to_string(),
+                    approved: true,
+                },
+                TuiCommand::ListReleases,
+                TuiCommand::RunDemo {
+                    release: "0.1.1".to_string(),
+                },
+            ],
+        );
+        assert!(evs.iter().any(|e| matches!(
+            e,
+            CoreEvent::ReleaseList { releases } if releases.iter().any(|r| r.version == "0.1.1")
+        )));
+        assert!(evs
+            .iter()
+            .any(|e| matches!(e, CoreEvent::DemoOutput { .. })));
+        assert!(evs
+            .iter()
+            .any(|e| matches!(e, CoreEvent::DemoExited { code: 0 })));
         std::fs::remove_dir_all(&root).ok();
     }
 }

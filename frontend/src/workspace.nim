@@ -6,6 +6,7 @@
 
 import std/json
 import niobium
+import ./theme
 import ./panels/config
 import ./panels/maestro
 import ./panels/product
@@ -80,6 +81,15 @@ proc selectedRelease*(s: WorkspaceState): string =
   else:
     ""
 
+proc hasPendingApproval*(s: WorkspaceState): bool =
+  ## Whether Maestro is blocked awaiting the user's approval.
+  s.maestro.approvalId.len > 0
+
+proc clearApproval*(s: var WorkspaceState) =
+  ## Clear the pending approval after the user responds.
+  s.maestro.approvalId = ""
+  s.maestro.approvalPrompt = ""
+
 proc applyEvent*(s: var WorkspaceState, node: JsonNode) =
   ## Fold a decoded core event (`{ "v": 2, "kind": ..., ... }`) into the state.
   let kind = node{"kind"}.getStr("")
@@ -114,6 +124,10 @@ proc applyEvent*(s: var WorkspaceState, node: JsonNode) =
     s.maestro.narration.add(
       "delivered " & node{"persona"}.getStr("") & ": " & node{"summary"}.getStr("")
     )
+  of "approval_request":
+    s.maestro.approvalId = node{"id"}.getStr("")
+    s.maestro.approvalPrompt = node{"prompt"}.getStr("")
+    s.maestro.narration.add("approval requested: " & s.maestro.approvalPrompt)
   of "config_tree":
     s.config.entries = @[]
     for e in node{"entries"}.getElems():
@@ -153,6 +167,8 @@ proc renderWorkspace*(f: var Frame, s: WorkspaceState) =
   of 2: renderProduct(f, rows[1], s.product)
   else: renderMaestro(f, rows[1], s.maestro)
 
-  let footer = initBlock(title = " Command ", borders = AllBorders)
+  let footer = initBlock(title = panelTitle("Command"), borders = panelBorders())
   f.renderWidget(footer, rows[2])
-  f.renderWidget(paragraph("> " & s.input & "    " & s.status), footer.inner(rows[2]))
+  f.renderWidget(
+    paragraph(asciiHeader("Command") & "> " & s.input & "    " & s.status), footer.inner(rows[2])
+  )

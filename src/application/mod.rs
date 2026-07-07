@@ -8,8 +8,12 @@
 
 pub mod agent_observability;
 pub mod agent_runtime;
+pub mod demo_runner;
 pub mod error;
 pub mod governance;
+pub mod model_router;
+pub mod orchestrator;
+pub mod persistence;
 pub mod persona_agent;
 pub mod readiness;
 pub mod sops;
@@ -18,3 +22,4 @@ pub mod wizard;
 pub use agent_observability::RuntimeEvent;
 pub use agent_runtime::AgentRuntime;
 pub use error::RuntimeError;
+pub use orchestrator::{orchestrate, Session, Signal};
