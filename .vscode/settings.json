@@ -1,10 +1,5 @@
 {
   "github.copilot.chat.codeGeneration.useInstructionFiles": true,
-  "github.copilot.chat.codeGeneration.instructions": [
-    {
-      "file": ".github/copilot-instructions.md"
-    }
-  ],
   "github.copilot.chat.commitMessageGeneration.instructions": [
     {
       "text": "Use Conventional Commits. Reference exactly one linked plan task path when available. Keep subject imperative and under 72 characters."
