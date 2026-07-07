@@ -56,9 +56,12 @@ proc onModeEntered(s: WorkspaceState, inStream: Stream) =
   ## Notify the core of the active mode and request its initial data.
   inStream.sendCommand("switch_mode", %*{"mode": s.modeName})
   case s.modeName
-  of "config": inStream.sendCommand("config_list")
-  of "product": inStream.sendCommand("list_releases")
-  else: discard
+  of "config":
+    inStream.sendCommand("config_list")
+  of "product":
+    inStream.sendCommand("list_releases")
+  else:
+    discard
 
 proc handleKey(s: var WorkspaceState, ev: KeyEvent, inStream: Stream) =
   ## Update state and emit commands from a single key event.
@@ -73,11 +76,15 @@ proc handleKey(s: var WorkspaceState, ev: KeyEvent, inStream: Stream) =
     s.cycleMode()
     s.onModeEntered(inStream)
   of kcUp:
-    if s.modeName == "config": s.configSelectMove(-1)
-    elif s.modeName == "product": s.productSelectMove(-1)
+    if s.modeName == "config":
+      s.configSelectMove(-1)
+    elif s.modeName == "product":
+      s.productSelectMove(-1)
   of kcDown:
-    if s.modeName == "config": s.configSelectMove(1)
-    elif s.modeName == "product": s.productSelectMove(1)
+    if s.modeName == "config":
+      s.configSelectMove(1)
+    elif s.modeName == "product":
+      s.productSelectMove(1)
   of kcBackspace:
     if s.input.len > 0:
       s.input.setLen(s.input.len - 1)
@@ -134,7 +141,8 @@ proc run*() =
   term.setup()
   defer:
     term.restore()
-    if inStream != nil: inStream.close()
+    if inStream != nil:
+      inStream.close()
     if core != nil:
       core.terminate()
       discard core.waitForExit()
@@ -148,4 +156,3 @@ proc run*() =
         state.handleKey(e.key, inStream)
     term.draw proc(f: var Frame) =
       renderWorkspace(f, state)
-

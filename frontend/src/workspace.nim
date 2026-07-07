@@ -54,10 +54,14 @@ proc cycleMode*(s: var WorkspaceState) =
   s.modeIndex = (s.modeIndex + 1) mod ModeTitles.len
 
 proc clampSelection(sel, count: int): int =
-  if count <= 0: 0
-  elif sel < 0: 0
-  elif sel >= count: count - 1
-  else: sel
+  if count <= 0:
+    0
+  elif sel < 0:
+    0
+  elif sel >= count:
+    count - 1
+  else:
+    sel
 
 proc configSelectMove*(s: var WorkspaceState, delta: int) =
   ## Move the Config navigator selection, clamped to the entry list.
@@ -72,7 +76,8 @@ proc selectedConfigId*(s: WorkspaceState): string =
 
 proc productSelectMove*(s: var WorkspaceState, delta: int) =
   ## Move the Product release selection, clamped to the release list.
-  s.product.selected = clampSelection(s.product.selected + delta, s.product.releases.len)
+  s.product.selected =
+    clampSelection(s.product.selected + delta, s.product.releases.len)
 
 proc selectedRelease*(s: WorkspaceState): string =
   ## The version of the selected release, or "" if none.
@@ -96,7 +101,8 @@ proc applyEvent*(s: var WorkspaceState, node: JsonNode) =
   case kind
   of "mode_changed":
     let idx = modeIndexOf(node{"mode"}.getStr(""))
-    if idx >= 0: s.modeIndex = idx
+    if idx >= 0:
+      s.modeIndex = idx
   of "log":
     s.maestro.narration.add(
       node{"level"}.getStr("info") & ": " & node{"message"}.getStr("")
@@ -146,7 +152,9 @@ proc applyEvent*(s: var WorkspaceState, node: JsonNode) =
     s.product.releases = @[]
     for r in node{"releases"}.getElems():
       s.product.releases.add(
-        ReleaseView(version: r{"version"}.getStr(""), changelog: r{"changelog"}.getStr(""))
+        ReleaseView(
+          version: r{"version"}.getStr(""), changelog: r{"changelog"}.getStr("")
+        )
       )
   of "demo_output":
     s.product.running = true
@@ -163,12 +171,16 @@ proc renderWorkspace*(f: var Frame, s: WorkspaceState) =
   f.renderWidget(tabs(ModeTitles, selected = s.modeIndex), rows[0])
 
   case s.modeIndex
-  of 0: renderConfig(f, rows[1], s.config)
-  of 2: renderProduct(f, rows[1], s.product)
-  else: renderMaestro(f, rows[1], s.maestro)
+  of 0:
+    renderConfig(f, rows[1], s.config)
+  of 2:
+    renderProduct(f, rows[1], s.product)
+  else:
+    renderMaestro(f, rows[1], s.maestro)
 
   let footer = initBlock(title = panelTitle("Command"), borders = panelBorders())
   f.renderWidget(footer, rows[2])
   f.renderWidget(
-    paragraph(asciiHeader("Command") & "> " & s.input & "    " & s.status), footer.inner(rows[2])
+    paragraph(asciiHeader("Command") & "> " & s.input & "    " & s.status),
+    footer.inner(rows[2]),
   )

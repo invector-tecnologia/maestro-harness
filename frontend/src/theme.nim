@@ -13,12 +13,21 @@ proc asciiOnly*(): bool =
 
 proc panelBorders*(): Borders =
   ## The border set for a panel: none in ASCII mode, full box otherwise.
-  if asciiOnly(): {} else: AllBorders
+  if asciiOnly():
+    {}
+  else:
+    AllBorders
 
 proc panelTitle*(title: string): string =
   ## The block title — empty in ASCII mode (rendered as a text header instead).
-  if asciiOnly(): "" else: " " & title & " "
+  if asciiOnly():
+    ""
+  else:
+    " " & title & " "
 
 proc asciiHeader*(title: string): string =
   ## A plain-text header line used in ASCII mode; empty in normal mode.
-  if asciiOnly(): "[" & title & "]\n" else: ""
+  if asciiOnly():
+    "[" & title & "]\n"
+  else:
+    ""

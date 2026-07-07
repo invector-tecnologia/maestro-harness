@@ -16,12 +16,11 @@ proc renderToText(s: WorkspaceState): string =
 suite "workspace shell":
   test "config tab shows governance navigator":
     var s = newWorkspaceState(0)
-    s.config.entries =
-      @[
-        ConfigEntryView(
-          id: "personas/maestro", kind: "persona", origin: "default", archived: false
-        )
-      ]
+    s.config.entries = @[
+      ConfigEntryView(
+        id: "personas/maestro", kind: "persona", origin: "default", archived: false
+      )
+    ]
     let r = renderToText(s)
     check r.contains("Config")
     check r.contains("Governance")
@@ -62,13 +61,14 @@ suite "workspace shell":
 
   test "configSelectMove clamps and selectedConfigId tracks":
     var s = newWorkspaceState(0)
-    s.config.entries =
-      @[
-        ConfigEntryView(id: "config.yml", kind: "config", origin: "default", archived: false),
-        ConfigEntryView(
-          id: "personas/maestro", kind: "persona", origin: "default", archived: false
-        ),
-      ]
+    s.config.entries = @[
+      ConfigEntryView(
+        id: "config.yml", kind: "config", origin: "default", archived: false
+      ),
+      ConfigEntryView(
+        id: "personas/maestro", kind: "persona", origin: "default", archived: false
+      ),
+    ]
     s.configSelectMove(-1) # clamp low
     check s.config.selected == 0
     check s.selectedConfigId == "config.yml"
@@ -89,8 +89,10 @@ suite "workspace shell":
 
   test "selectedRelease tracks product selection":
     var s = newWorkspaceState(2)
-    s.product.releases =
-      @[ReleaseView(version: "0.2.0", changelog: ""), ReleaseView(version: "0.1.0", changelog: "")]
+    s.product.releases = @[
+      ReleaseView(version: "0.2.0", changelog: ""),
+      ReleaseView(version: "0.1.0", changelog: ""),
+    ]
     s.productSelectMove(1)
     check s.selectedRelease == "0.1.0"
 
@@ -113,10 +115,11 @@ suite "workspace shell":
   test "ascii-only mode drops unicode borders":
     putEnv("MAESTRO_ASCII_ONLY", "1")
     var s = newWorkspaceState(0)
-    s.config.entries =
-      @[
-        ConfigEntryView(id: "config.yml", kind: "config", origin: "default", archived: false)
-      ]
+    s.config.entries = @[
+      ConfigEntryView(
+        id: "config.yml", kind: "config", origin: "default", archived: false
+      )
+    ]
     let r = renderToText(s)
     delEnv("MAESTRO_ASCII_ONLY")
     check not r.contains("\u2514") # box-drawing corner absent

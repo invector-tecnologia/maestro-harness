@@ -30,9 +30,12 @@ proc renderProduct*(f: var Frame, area: Rect, s: ProductState) =
     rel = "no releases shipped\n"
   elif s.selected >= 0 and s.selected < s.releases.len:
     rel.add("\n" & s.releases[s.selected].changelog & "\n")
-  let relBlk = initBlock(title = panelTitle("Releases & Notes"), borders = panelBorders())
+  let relBlk =
+    initBlock(title = panelTitle("Releases & Notes"), borders = panelBorders())
   f.renderWidget(relBlk, cols[0])
-  f.renderWidget(paragraph(asciiHeader("Releases & Notes") & rel), relBlk.inner(cols[0]))
+  f.renderWidget(
+    paragraph(asciiHeader("Releases & Notes") & rel), relBlk.inner(cols[0])
+  )
 
   var outText = (if s.running: "[running]\n" else: "[idle]\n")
   for line in s.output:

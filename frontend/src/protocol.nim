@@ -13,21 +13,44 @@ const ProtocolVersion* = 2
 
 const CoreEventKinds* = [
   # v1
-  "agent_state", "fsm_transition", "log", "metric", "heartbeat", "approval_request",
+  "agent_state",
+  "fsm_transition",
+  "log",
+  "metric",
+  "heartbeat",
+  "approval_request",
   # v2 — mode + Config + Maestro + Product
-  "mode_changed", "config_tree", "config_entry", "config_validation", "config_saved",
-  "plan_proposed", "delegation", "deliverable", "release_list", "demo_output", "demo_exited",
-]
-  ## Every core→TUI event kind the frontend accepts (mirrors `CoreEvent`).
+  "mode_changed",
+  "config_tree",
+  "config_entry",
+  "config_validation",
+  "config_saved",
+  "plan_proposed",
+  "delegation",
+  "deliverable",
+  "release_list",
+  "demo_output",
+  "demo_exited",
+] ## Every core→TUI event kind the frontend accepts (mirrors `CoreEvent`).
 
 const TuiCommandKinds* = [
   # v1
-  "user_input", "command", "approval_response",
+  "user_input",
+  "command",
+  "approval_response",
   # v2
-  "switch_mode", "config_list", "config_open", "config_edit", "config_create",
-  "config_archive", "config_validate", "config_save", "list_releases", "run_demo", "stop_demo",
-]
-  ## Every TUI→core command kind the frontend emits (mirrors `TuiCommand`).
+  "switch_mode",
+  "config_list",
+  "config_open",
+  "config_edit",
+  "config_create",
+  "config_archive",
+  "config_validate",
+  "config_save",
+  "list_releases",
+  "run_demo",
+  "stop_demo",
+] ## Every TUI→core command kind the frontend emits (mirrors `TuiCommand`).
 
 const WorkspaceModes* = ["config", "maestro", "product"]
   ## The three Workspace modes (ADR 0002).
