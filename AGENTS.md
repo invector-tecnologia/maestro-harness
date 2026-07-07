@@ -46,7 +46,7 @@ scripts/quality-gate.sh                        # 4. aggregate project gate
 ### Nim / Niobium TUI (run in this order)
 
 ```
-nimble install -y niobium                     # 1. resolve the TUI dependency
+scripts/install-niobium.sh                    # 1. resolve the TUI dependency (pinned niobium commit; not on the nimble registry yet)
 nph --check frontend                          # 2. formatting
 nimble test                                   # 3. TUI tests (Niobium test backend, no TTY)
 ```
@@ -62,5 +62,5 @@ nimble test                                   # 3. TUI tests (Niobium test backe
 ## Toolchain
 
 - Rust: stable toolchain, `cargo fmt` + `cargo clippy`, Tokio async runtime.
-- Nim ≥ 2.0.0 (`--mm:orc`), formatter `nph`, TUI via `niobium >= 0.1.0`.
+- Nim ≥ 2.0.0 (`--mm:orc`), formatter `nph`, TUI via Niobium pinned to the exact v0.1.0 commit (`scripts/install-niobium.sh`).
 - Never bypass gates (no skipping clippy/fmt, no `--no-verify`).

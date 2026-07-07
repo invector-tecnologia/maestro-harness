@@ -10,7 +10,7 @@ description: "Use when building or reviewing Maestro's Nim/Niobium TUI: mapping 
 - Wiring the TUI to the Rust core's stdio protocol.
 
 ## Niobium at a glance
-- Install: `nimble install niobium` (Nim ≥ 2.0). Pin `requires "niobium >= 0.1.0"`.
+- Install (not on the nimble registry yet): run `scripts/install-niobium.sh` (installs the exact commit behind niobium v0.1.0, Nim ≥ 2.0). Declare a bare `requires "niobium"` in the nimble file.
 - Immediate mode: redraw the whole UI each tick from state; Niobium diffs and writes only changes.
 - Constraint layout: `Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill`; split with `f.area.split(...)`.
 - Test backend renders a `Buffer` to text with no TTY → golden snapshots in CI.

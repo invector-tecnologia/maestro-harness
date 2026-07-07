@@ -76,8 +76,10 @@ jobs:
 
       - name: Resolve Niobium dependency
         if: steps.guard.outputs.present == 'true'
-        working-directory: frontend
-        run: nimble install -y --depsOnly
+        run: |
+          # Niobium is not on the nimble registry yet; install the exact pinned commit.
+          ./scripts/install-niobium.sh
+          cd frontend && nimble install -y --depsOnly
 
       - name: Format check (nph)
         if: steps.guard.outputs.present == 'true'

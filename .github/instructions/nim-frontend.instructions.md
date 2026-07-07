@@ -9,7 +9,7 @@ Maestro's TUI is a **consumer** of [Niobium](https://github.com/invector-tecnolo
 re-implementation of it. Frontend Nim code lives under `frontend/`.
 
 ## Dependency & toolchain
-- `requires "niobium >= 0.1.0"` in `frontend/*.nimble`. Nim ≥ 2.0, `--mm:orc`, formatted with `nph`.
+- Declare a bare `requires "niobium"` in `frontend/*.nimble` and install it via `scripts/install-niobium.sh` (the exact pinned commit behind niobium v0.1.0); it is not on the nimble registry yet. Nim ≥ 2.0, `--mm:orc`, formatted with `nph`.
 - Use only Niobium's public API: `newTerminal(newAnsiBackend())`, `term.setup()` /
   `defer term.restore()`, `term.draw proc(f: var Frame) = ...`, `f.renderWidget(w, rect)`.
 

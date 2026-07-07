@@ -31,19 +31,19 @@ Fire up the TUI. Define your personas, scopes, and skills. Watch your AI team sy
 Maestro's brain is **Rust-native**. Fast. Uncompromising. Its interactive **TUI** (Terminal User Interface) is a separate Nim process that consumes [Niobium](https://github.com/invector-tecnologia/niobium) — an immediate-mode, ratatui-inspired Nim TUI library — delivering menus, tables, real-time logs, and keyboard shortcuts over a line-delimited JSON protocol, all without terminal bloat or command memorization. The core stays fully usable headless with `--no-tui`.
 
 ### ⚡ What You Control
-* **✅ Multi-Provider AI Synthesis (Operational):** Run models locally and free with **Ollama** (no API key), or connect **OpenAI**, **Anthropic**, and **Google Gemini** with API credentials. All four adapters are registered in the provider registry. **Per-agent model routing** lets each persona run a different model — see [Control Deck Initialization](#-control-deck-initialization). Cloud providers require valid API keys; reliability hardening continues through v0.2+.
-* **🚧 Governance Codex (In Progress):** Define *Personas* (AI profiles), *Scopes* (execution domains), *Skills* (tool capabilities). Core persona/scope creation works; skill system and compliance enforcement in development.
+* **🚧 Multi-Provider AI Synthesis:** Run models locally and free with **Ollama** (no API key) — the reference adapter is **operational** and resolved through the provider registry. **OpenAI**, **Anthropic**, and **Google Gemini** adapters are planned for v0.2+. Configuration supports **per-agent model routing** (each persona can pin a provider + model); unlisted personas fall back to `system.default_provider`/`default_model`, and Maestro **fails fast** on startup if a referenced pair is undeclared.
+* **🚧 Governance Codex (In Progress):** Define *Personas* (AI profiles), *Scopes* (execution domains), *Skills* (tool capabilities). The default persona catalog and required-field creation wizards work; the full skill system and compliance enforcement are in development.
 * **📋 Secure Credentials (Planned):** OAuth2 browser login to Google Gemini planned. Basic local config auth operational; keychain integration roadmap v0.2+.
-* **✅ Agent Observability (Operational):** Tracing of agent decisions and token usage implemented. Cost tracking and full audit logs planned for v0.2+.
+* **✅ Agent Observability (Operational):** Structured `tracing` narration of the `observe → think → act` cognitive cycle is implemented. Cost tracking and full audit logs planned for v0.2+.
 
-### ⚡ Dependency Matrix
-Maestro partitions the dependency graph into **two isolation zones**:
+### ⚡ Dependency Matrix (Planned v0.2+)
+Maestro will partition the dependency graph into **two isolation zones** (tracked for v0.2+):
 
 **Zone 1: Harness Domain** — Maestro runtime readiness. LLM provider config, model catalog, connection health.
 
 **Zone 2: Project Domain** — Your repo's AI companion. Toolchain checks, command availability, framework validation (defined in `maestro/project-deps.yml`).
 
-Validate each zone independently:
+Validate each zone independently (roadmap):
 
 ```bash
 maestro deps check --scope harness      # Check Maestro runtime only
@@ -59,8 +59,8 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.1.0
 
 | Level | Status | Examples |
 |-------|--------|----------|
-| **Foundational** | ✅ Complete | `maestro init`, config validation, readiness checks, markdown scaffolding |
-| **Core** | 🚧 Partial | Multi-agent runtime (basic), TUI dashboard, multi-provider adapters (Ollama/OpenAI/Anthropic/Gemini) + per-agent model routing, persona/scope creation |
+| **Foundational** | ✅ Complete | `maestro init-config`, `maestro validate-config`, `maestro doctor` readiness checks, `maestro scaffold-markdown` |
+| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), Nim/Niobium TUI dashboard over a stdio JSON protocol, Ollama provider adapter + registry, default persona catalog, required-field creation wizards |
 | **Advanced** | 📋 Planned | Guided onboarding resumption, accessibility controls, cross-platform packaging |
 | **Enterprise** | 📋 Roadmap | Compliance reporting, policy extension, audit analytics |
 
@@ -71,6 +71,8 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.1.0
 ## ⚡ BOOT SEQUENCE
 
 **⚠️ FOR DEVELOPMENT & TESTING ONLY** — This is pre-release software. Suitable for local testing and development workflows. Do not deploy to production environments.
+
+> **0.1.0 reality check:** Only the Debian build script (`./scripts/build-deb.sh`) exists today. The install one-liner and the macOS/Arch packaging scripts below are on the roadmap. For now, build from source: `cargo build --release` for the core, and `./scripts/install-niobium.sh` + `nimble build` in `frontend/` for the Nim/Niobium TUI.
 
 **Open your terminal.** On macOS and Linux: search for "Terminal". On Windows: open "PowerShell" or "Command Prompt".
 
@@ -172,36 +174,33 @@ agents:
 
 ## ⚡ COMMAND EXECUTION
 
-**Execution Protocol.** Boot your orchestration workflow:
+**Execution Protocol.** The commands shipped in **0.1.0**:
 
-1. **INIT** — `maestro init <project-name>` synthesizes project folder, default config, and mandatory directories. Opens interactive onboarding by default.
-2. **SCRIPTED INIT** — `maestro init <project-name> --no-tui` for CI/CD and automation (no interactive prompts).
-3. **VALIDATE** — `maestro validate-config` checks configuration integrity and dependency health.
-4. **LAUNCH** — `maestro tui` fires up your interactive command deck.
-5. **ARCHITECT** — Inside TUI, execute `/new scope`, `/new persona`, `/new skill` to map execution domains and AI profiles, or `/architect` to open Architect Mode, the directive governance home (Create/Edit/Update/Delete). Return to the monitor with `/monitor`.
-6. **EXECUTE** — `maestro run` triggers automated work cycles. In Workspace Mode the Maestro agent orchestrates the demand end to end — plan, delegate to each persona, audit every contribution, then deliver a synthesized result — with live narration and a heartbeat while long-running agents work. Monitor logs. Watch your AI team synthesize.
+1. **VALIDATE** — `maestro validate-config` checks configuration integrity and cross-references.
+2. **SCAFFOLD** — `maestro scaffold-markdown` creates the mandatory `scopes`/`personas`/`skills` governance folders; `maestro init-config` writes a starter `maestro/config.yml`.
+3. **INSPECT** — `maestro list-agents` catalogs the registered personas; `maestro doctor` runs readiness checks (configuration + governance scaffold).
+4. **HEADLESS** — every command accepts the global `--no-tui` flag for CI/automation.
 
-### ⚡ Utility Commands
+> **Planned (v0.2+):** `maestro init`, `maestro tui`, `maestro run`, `maestro deps check`, `maestro directives`, `maestro interview`, and `maestro onboarding` — the interactive Nim/Niobium command deck and guided onboarding flows.
 
-* **`maestro doctor`** — Health scan. Validates environment, mandatory markdowns, and config readiness.
-* **`maestro init-config`** — Generates only `maestro/config.yml`.
-* **`maestro scaffold-markdown`** — Generates only Markdown folder structure.
-* **`maestro deps check --scope <harness|project|all>`** — Validates dependency zones independently.
-* **`maestro list-agents`** — Catalogs all registered personas.
-* **`maestro directives`** — Opens Architect Mode on the directive governance home (Create/Edit/Update/Delete personas, persona skills, and scopes).
-* **`maestro interview`** — Launches the guided onboarding interview.
-* **`maestro onboarding --mode fast`** — Rapid onboarding with safe defaults.
-* **`maestro onboarding --mode detailed`** — Full guided interview with advanced options.
+### ⚡ Utility Commands (0.1.0)
+
+* **`maestro version`** — Print version information.
+* **`maestro validate-config`** — Validate `maestro/config.yml` and its cross-references.
+* **`maestro list-agents`** — Catalog the registered personas.
+* **`maestro doctor`** — Readiness scan (configuration + governance scaffold).
+* **`maestro scaffold-markdown`** — Generate the governance Markdown folders.
+* **`maestro init-config`** — Generate a starter `maestro/config.yml`.
 
 ### 🐞 DEBUG OVERRIDE
 
-Enable full tracing and write debug logs:
+Control tracing verbosity via the `RUST_LOG` environment variable (defaults to `info`):
 
 ```bash
-MAESTRO_DEBUG=1 maestro tui
+RUST_LOG=debug maestro doctor
 ```
 
-Logs stream to `maestro.log` in the current directory.
+All logging flows through `tracing`; `println!`/`eprintln!` are forbidden in the core.
 
 ---
 
@@ -210,8 +209,7 @@ Logs stream to `maestro.log` in the current directory.
 Every release passes through a **Quality Gate**. Validate locally:
 
 ```bash
-./scripts/quality-gate.sh              # Run full quality validation
-./scripts/publish-github.sh v0.1.0    # Build and publish release to GitHub
+./scripts/quality-gate.sh              # Run full quality validation (Rust core + Nim TUI)
 ```
 
 ### ⚡ PR Governance Protocol
@@ -230,7 +228,7 @@ This repository enforces **CI-gated governance** through `.github/workflows/ai-g
 1. Repo Settings → `Secrets and variables` → `Actions` → `Variables`
 2. Create `MIN_ACCEPTANCE_ITEMS` with numeric value (e.g., `4`)
 
-**License:** MIT
+**License:** GPL-3.0
 
 ---
 
@@ -243,4 +241,4 @@ The `docs/` folder is your knowledge base, organized by execution domain:
 * **`docs/User_Manual/`** — Runtime reference: commands, panels, day-to-day operations.
 * **`docs/Maestro_Manifesto/`** — Architecture truth: design philosophy, conventions, feature matrix, value streams.
 
-**Project meta:** [Contributing Guide](CONTRIBUTING.md) · [Security Policy](.github/SECURITY.md) · [License (MIT)](LICENSE)
+**Project meta:** [Contributing Guide](CONTRIBUTING.md) · [Security Policy](.github/SECURITY.md) · [License (GPL-3.0)](LICENSE)

@@ -5,31 +5,35 @@ This checklist consolidates evidence from Task 016 for MLP 0.1.0 validation.
 
 ## Required gates
 - [x] `cargo fmt --all --check`
-- [x] `cargo clippy --workspace --all-targets --all-features -- -D warnings`
-- [x] `cargo test --workspace -- --nocapture`
+- [x] `cargo clippy --all-targets -- -D warnings`
+- [x] `cargo test --all-targets`
+- [x] `nimble test` (Nim/Niobium TUI, headless test backend)
 
 ### Consolidated gate evidence
 - Script executed: `./scripts/quality-gate.sh`
-- Result: `Quality gate passed`
-- Current suite: `45 passed; 0 failed`
+- Result: `Quality gate OK`
+- Rust suite: `57 passed; 0 failed` (unit) + `1 passed` (architecture boundary integration test)
+- Nim suite: `6 passed` (dashboard snapshot + stdio protocol framing, no TTY)
 
 ## MLP requirements coverage
 - [x] Complete multi-agent flow (runtime + failure isolation)
-  - Evidence: tests in `application::agent_runtime::tests::*`
-- [x] Default operational personas for Product/Engineering/UX/DevOps
-  - Evidence: test `application::persona_operations::tests::default_personas_collaborate_on_user_message`
-- [x] TUI with agent panel, logs, and command input
-  - Evidence: tests `presentation::tui::tests::renders_agents_logs_and_input_panels` and `handles_basic_input_flow_and_submit`
+  - Evidence: `application::agent_runtime::tests::{runs_cycle_and_collects_outputs, failing_agent_is_isolated}`
+- [x] Default operational personas (Project Manager / Quality Assurance / User Experience / Software Engineer)
+  - Evidence: `application::persona_agent::tests::activates_four_operational_personas`, `domain::models::persona::tests::*`
+- [x] TUI with agent panel, logs, and command input (Nim/Niobium)
+  - Evidence: `frontend/tests/test_dashboard.nim` (headless test-backend snapshot of the dashboard panels)
 - [x] Required persona/scope/skill creation wizards with required-field blocking
-  - Evidence: unit tests `presentation::tui::tests::wizard_*`
+  - Evidence: unit tests `application::wizard::tests::*`
 - [x] External configuration validated (schema, type, and cross references)
-  - Evidence: unit tests `application::config::tests::*`
+  - Evidence: unit tests `domain::models::config::tests::*` and `infrastructure::config::tests::*`
 - [x] Provider registry + reference Ollama adapter
-  - Evidence: unit tests `infrastructure::llm::provider_registry::tests::*` e `infrastructure::llm::ollama_adapter::tests::*`
-- [x] Operational CLI (`run`, `tui`, `validate-config`, `list-agents`, `doctor`, `scaffold-markdown`)
+  - Evidence: unit tests `infrastructure::llm::registry::tests::*` and `infrastructure::llm::ollama::tests::*`
+- [x] Rust↔Nim IPC stdio protocol (versioned, schema-checked)
+  - Evidence: unit tests `presentation::ipc::tests::*` and `frontend/tests/test_protocol.nim`
+- [x] Operational CLI (`version`, `validate-config`, `list-agents`, `doctor`, `scaffold-markdown`, `init-config`, `--no-tui`)
   - Evidence: unit tests `presentation::cli::tests::*`
 - [x] Debian packaging prepared (`.deb`) with remove/purge lifecycle
-  - Evidence: `packaging/debian/*`, `scripts/build-deb.sh`, `scripts/smoke-test-debian.sh`, `docs/Practical_Guides/SMOKE_TEST_DEBIAN.md`
+  - Evidence: `scripts/build-deb.sh` (control + `postrm purge` hook)
 
 ## Debian validation status
 - [ ] Debian smoke test executed in a clean environment with `dpkg`/`dpkg-deb`
