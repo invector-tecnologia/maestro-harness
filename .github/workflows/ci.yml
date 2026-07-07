@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  rust-core:
+    name: Rust core
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache cargo build
+        uses: Swatinem/rust-cache@v2
+
+      - name: Skip if no Rust crate yet
+        id: guard
+        shell: bash
+        run: |
+          if [ -f Cargo.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No Cargo.toml yet — Rust core not scaffolded. Skipping."
+          fi
+
+      - name: Format check
+        if: steps.guard.outputs.present == 'true'
+        run: cargo fmt --all --check
+
+      - name: Clippy (deny warnings)
+        if: steps.guard.outputs.present == 'true'
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Tests
+        if: steps.guard.outputs.present == 'true'
+        run: cargo test --all-targets
+
+      - name: Project quality gate
+        if: steps.guard.outputs.present == 'true' && hashFiles('scripts/quality-gate.sh') != ''
+        run: ./scripts/quality-gate.sh
+
+  nim-tui:
+    name: Nim / Niobium TUI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.2.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Skip if no Nim frontend yet
+        id: guard
+        shell: bash
+        run: |
+          if ls frontend/*.nimble >/dev/null 2>&1; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "No frontend/*.nimble yet — Nim TUI not scaffolded. Skipping."
+          fi
+
+      - name: Resolve Niobium dependency
+        if: steps.guard.outputs.present == 'true'
+        working-directory: frontend
+        run: nimble install -y --depsOnly
+
+      - name: Format check (nph)
+        if: steps.guard.outputs.present == 'true'
+        run: |
+          nimble install -y nph
+          ~/.nimble/bin/nph --check frontend || (echo "Run 'nph frontend'"; exit 1)
+
+      - name: TUI tests (Niobium test backend, no TTY)
+        if: steps.guard.outputs.present == 'true'
+        working-directory: frontend
+        run: nimble test
