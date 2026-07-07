@@ -1,4 +1,4 @@
-# TASK 017: User First-Run Onboarding in Niobium
+# TASK 017: User First-Run Onboarding in Tatui
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Current TUI, local session state, user onboarding requirements.
@@ -6,14 +6,14 @@
 * **Expected Output:** A first-run introduction flow inside the TUI.
 
 ## 2. ABSOLUTE CONSTRAINTS (1.58-bit Constraint)
-* 100% in Niobium, no external prompts.
+* 100% in Tatui, no external prompts.
 * Must allow completion or skip without blocking the session.
 * Messages must be action-oriented and traceable via log.
 
 ## 3. EXECUTION PROMPT (Paste into Copilot Chat)
 """
 Act as a Product Engineer focused on developer-tool onboarding.
-Goal: Implement Maestro's first-run user onboarding in Niobium.
+Goal: Implement Maestro's first-run user onboarding in Tatui.
 
 Before generating code, open a `<reasoning>` block and validate the first-contact UX.
 

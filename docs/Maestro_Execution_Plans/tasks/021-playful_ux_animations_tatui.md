@@ -1,4 +1,4 @@
-# TASK 021: Playful UX and Animations in Niobium
+# TASK 021: Playful UX and Animations in Tatui
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** TUI render loop, onboarding and runtime states.
@@ -13,7 +13,7 @@
 ## 3. EXECUTION PROMPT (Paste into Copilot Chat)
 """
 Act as a Terminal UX Engineer.
-Goal: Make Maestro's onboarding and operation playful and animated in Niobium.
+Goal: Make Maestro's onboarding and operation playful and animated in Tatui.
 
 Before generating code, open a `<reasoning>` block and evaluate performance and accessibility.
 

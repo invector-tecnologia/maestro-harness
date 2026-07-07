@@ -52,7 +52,7 @@ jobs:
         run: ./scripts/quality-gate.sh
 
   nim-tui:
-    name: Nim / Niobium TUI
+    name: Nim / Tatui TUI
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -74,11 +74,11 @@ jobs:
             echo "No frontend/*.nimble yet — Nim TUI not scaffolded. Skipping."
           fi
 
-      - name: Resolve Niobium dependency
+      - name: Resolve Tatui dependency
         if: steps.guard.outputs.present == 'true'
         run: |
-          # Niobium is not on the nimble registry yet; install the exact pinned commit.
-          ./scripts/install-niobium.sh
+          # Tatui is not on the nimble registry yet; install the exact pinned commit.
+          ./scripts/install-tatui.sh
           cd frontend && nimble install -y --depsOnly
 
       - name: Format check (nph)
@@ -88,7 +88,7 @@ jobs:
           nimble install -y nph@0.7.0
           ~/.nimble/bin/nph --check frontend || (echo "Run 'nph frontend'"; exit 1)
 
-      - name: TUI tests (Niobium test backend, no TTY)
+      - name: TUI tests (Tatui test backend, no TTY)
         if: steps.guard.outputs.present == 'true'
         working-directory: frontend
         run: nimble test

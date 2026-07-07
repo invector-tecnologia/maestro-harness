@@ -6,7 +6,7 @@
 > for historical context only and does not describe shipped behavior.
 
 ## Scope
-- First-run user onboarding in Niobium.
+- First-run user onboarding in Tatui.
 - Skip redirect to project onboarding.
 - Guided project setup in staged wizards.
 - Onboarding command center.

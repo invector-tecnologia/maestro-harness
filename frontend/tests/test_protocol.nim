@@ -1,6 +1,6 @@
-## Headless protocol tests (no TTY, no Niobium required).
+## Headless protocol tests (no TTY, no Tatui required).
 ##
-## Panel golden-snapshot tests using Niobium's test backend are added by TASK 052.
+## Panel golden-snapshot tests using Tatui's test backend are added by TASK 052.
 
 import std/[json, strutils, unittest]
 import "../src/protocol"

@@ -40,6 +40,6 @@ Features (roadmap-oriented):
 
 ## Traceability
 - Runtime and personas: `src/application/agent_runtime.rs`, `src/application/orchestrator.rs`.
-- TUI: `frontend/src/` (Nim/Niobium); IPC: `src/presentation/ipc/`.
+- TUI: `frontend/src/` (Nim/Tatui); IPC: `src/presentation/ipc/`.
 - CLI operations: `src/presentation/cli/mod.rs`.
 - Packaging and quality gates: `scripts/quality-gate.sh`, `scripts/build-*.sh`.

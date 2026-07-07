@@ -1,4 +1,4 @@
-# TASK 053: Workspace Boundary — IPC v2, `maestro run/tui` wiring, Niobium shell, `maestro init`
+# TASK 053: Workspace Boundary — IPC v2, `maestro run/tui` wiring, Tatui shell, `maestro init`
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Existing v1 IPC (`src/presentation/ipc/mod.rs`), the one-shot Nim shell
@@ -8,7 +8,7 @@
 * **Context Anchors:** #file:docs/adr/0002-three-mode-workspace-and-interview-removal.md,
   #file:docs/adr/0003-ipc-v2-mode-scoped-protocol.md, #file:docs/Maestro_Manifesto/ARCHITECTURE.md
 * **Expected Output:** A live two-process Workspace. The Rust core runs a duplex IPC server
-  (`maestro run` / `maestro tui`) speaking protocol **v2**; the Nim/Niobium TUI renders a three-tab
+  (`maestro run` / `maestro tui`) speaking protocol **v2**; the Nim/Tatui TUI renders a three-tab
   Workspace (Config · Maestro · Product) driven by a real tick loop and stdin frames; and
   `maestro init [<name>]` performs a plain-CLI, non-LLM bootstrap that scaffolds defaults and opens
   the Workspace on Maestro Mode.
@@ -18,7 +18,7 @@
 * Protocol version is pinned at `2`; frames with `v != 2` and unknown `kind`s are rejected safely.
 * No interview/onboarding flow anywhere. `maestro init` makes NO LLM calls — it is a plain terminal
   questionnaire over stdin.
-* The Workspace exposes exactly three modes — Config, Maestro, Product — via a Niobium `Tabs` header.
+* The Workspace exposes exactly three modes — Config, Maestro, Product — via a Tatui `Tabs` header.
 * The Nim draw is a pure function of the latest `AppState`; no orchestration logic lives in Nim.
 * Rust production paths use no `unwrap()`/`expect()`/`panic!()`; `thiserror` in domain/application,
   `anyhow` only at the CLI boundary; all logging via `tracing`.
@@ -35,7 +35,7 @@
 * AC3: `maestro run` (headless) and `maestro tui` launch a duplex loop that reads `TuiCommand` from
   stdin and writes `CoreEvent` to stdout, bridging `BroadcastBus<RuntimeEvent>` narration to
   `CoreEvent`s. `--no-tui` keeps the core usable without the frontend process.
-* AC4: The Nim shell runs an event loop that (a) polls Niobium keyboard events and (b) reads stdin
+* AC4: The Nim shell runs an event loop that (a) polls Tatui keyboard events and (b) reads stdin
   frames non-blocking, updates `AppState`, and redraws. Global keys switch tabs and quit.
 * AC5: `switch_mode`/`mode_changed` change the active tab and the core echoes the active mode.
 * AC6: `frontend/src/protocol.nim` mirrors the v2 schema with typed encode/decode and rejects `v!=2`
@@ -56,7 +56,7 @@
 * `cargo clippy --all-targets -- -D warnings`
 * `cargo test --all-targets`
 * `scripts/quality-gate.sh`
-* `scripts/install-niobium.sh` then `cd frontend && nph --check . && nimble test`
+* `scripts/install-tatui.sh` then `cd frontend && nph --check . && nimble test`
 
 ## 5. INCREMENT MAP
 * INC1: Bump protocol to v2 and add mode-switching + reserved mode-scoped variants in

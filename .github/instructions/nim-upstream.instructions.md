@@ -9,5 +9,5 @@ description: "Reference the upstream Nim language/std (github.com/nim-lang/Nim) 
 - Confirm `std/*` APIs, pragmas, and `--mm:orc` semantics upstream before relying on memory; cite
   exact permalinks.
 - Target Nim ≥ 2.0 with `--mm:orc`; ignore pre-2.0 or GC-specific upstream guidance.
-- Local doctrine wins: the `niobium-frontend` skill and `nim-frontend.instructions.md` take
+- Local doctrine wins: the `tatui-frontend` skill and `nim-frontend.instructions.md` take
   precedence. Keep the TUI a thin, pure renderer of core state.

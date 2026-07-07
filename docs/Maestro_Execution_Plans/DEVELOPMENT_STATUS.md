@@ -11,10 +11,10 @@ _Last updated: 2026-07-07._
 
 A local-first, tactical **Agentic Workflow Orchestrator**. Two processes:
 a headless **Rust core** (hexagonal DDD: `domain` → `application` → `infrastructure` /
-`presentation`) and a separate **Nim/Niobium TUI** under `frontend/`. They communicate
+`presentation`) and a separate **Nim/Tatui TUI** under `frontend/`. They communicate
 **only** over a line-delimited JSON protocol on stdio. See
 [docs/Maestro_Manifesto/ARCHITECTURE.md](../Maestro_Manifesto/ARCHITECTURE.md) and
-[docs/adr/0001-rust-core-nim-niobium-tui-stdio-protocol.md](../adr/0001-rust-core-nim-niobium-tui-stdio-protocol.md).
+[docs/adr/0001-rust-core-nim-tatui-stdio-protocol.md](../adr/0001-rust-core-nim-tatui-stdio-protocol.md).
 
 ## 2. Current state (verified green)
 
@@ -34,7 +34,7 @@ Implemented modules:
   **init**/**run**/**tui**, `--no-tui`), `ipc` (v2 `CoreEvent`/`TuiCommand` + `server`).
 - `frontend/` — `app.nim` (tick loop), `protocol.nim` (v2), `workspace.nim`, `theme.nim`,
   `panels/{config,maestro,product}.nim`; tests in `frontend/tests/`.
-- Tooling — `scripts/quality-gate.sh`, `scripts/build-deb.sh`, `scripts/install-niobium.sh`.
+- Tooling — `scripts/quality-gate.sh`, `scripts/build-deb.sh`, `scripts/install-tatui.sh`.
 
 ## 3. Task ledger (docs/Maestro_Execution_Plans/tasks/)
 
@@ -65,11 +65,11 @@ Implemented modules:
 
 1. **Plan** — read the task file in `docs/Maestro_Execution_Plans/tasks/`, relevant ADRs, and the
    matching `.github/instructions/`.
-2. **Red** — write a failing test (Rust `#[cfg(test)]`, or Nim golden snapshot via Niobium's test backend).
+2. **Red** — write a failing test (Rust `#[cfg(test)]`, or Nim golden snapshot via Tatui's test backend).
 3. **Implement** — minimal code; respect the invariants (no `unwrap`/`expect`/`panic!`;
    `Arc<tokio::sync::RwLock>`; `tracing` only; `domain` imports nothing outward).
 4. **Verify** — `cargo fmt --all --check` → `cargo clippy --all-targets -- -D warnings` →
-   `cargo test --all-targets` → `scripts/quality-gate.sh`. Nim: `scripts/install-niobium.sh` then
+   `cargo test --all-targets` → `scripts/quality-gate.sh`. Nim: `scripts/install-tatui.sh` then
    `nimble test` in `frontend/`.
 5. **Record** — update the task's evidence section.
 
@@ -99,7 +99,7 @@ Recommended follow-ups (not yet started):
   native Anthropic/Gemini adapters are future.
 - Agent cognitive cycles are concurrent (`JoinSet`, read-only); the **serial cascade** rule applies to
   environment-affecting execution (enforced by the orchestrator `Session`) — do not "fix" the runtime.
-- **Niobium** is not on the nimble registry: `frontend/*.nimble` uses bare `requires "niobium"`; install
-  the exact pinned commit with `scripts/install-niobium.sh` (commit `0051e112…` = tag v0.1.0).
+- **Tatui** is not on the nimble registry: `frontend/*.nimble` uses bare `requires "tatui"`; install
+  the exact pinned commit with `scripts/install-tatui.sh` (commit `493d9fc0…` = tag v0.1.2).
 - `nph` formatting check is advisory where `nph` is unavailable in the environment.
 - RC docs: refresh test-count evidence at each release gate (016 = 0.1.0, 058 = 0.3.0).

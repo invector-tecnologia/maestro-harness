@@ -2,7 +2,7 @@
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Approved architecture (hexagonal core), event bus.
-* **Context Anchors:** #file:docs/Maestro_Manifesto/ARCHITECTURE.md, #file:.github/instructions/fsm-orchestration.instructions.md, #file:docs/adr/0001-rust-core-nim-niobium-tui-stdio-protocol.md
+* **Context Anchors:** #file:docs/Maestro_Manifesto/ARCHITECTURE.md, #file:.github/instructions/fsm-orchestration.instructions.md, #file:docs/adr/0001-rust-core-nim-tatui-stdio-protocol.md
 * **Expected Output:** A typed finite state machine driving every micro-project.
 
 ## 2. ABSOLUTE CONSTRAINTS (1.58-bit Constraint)

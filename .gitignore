@@ -31,7 +31,7 @@ maestro/*.log
 _temp.*
 maestro.log
 
-# Nim / Niobium frontend build artifacts
+# Nim / Tatui frontend build artifacts
 nimcache/
 frontend/maestro_tui
 frontend/src/maestro_tui

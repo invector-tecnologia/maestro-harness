@@ -5,7 +5,7 @@
 ## `applyEvent` folds a decoded core event into the state. No I/O lives here.
 
 import std/json
-import niobium
+import tatui
 import ./theme
 import ./panels/config
 import ./panels/maestro

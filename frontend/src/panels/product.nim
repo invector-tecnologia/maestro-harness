@@ -4,7 +4,7 @@
 ## the live artifact output (right). State is supplied by the protocol client
 ## (`release_list` / `demo_output` / `demo_exited`).
 
-import niobium
+import tatui
 import ../theme
 
 type

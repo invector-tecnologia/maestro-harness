@@ -1,9 +1,9 @@
 ## Config Mode panel — governance navigator + entry editor.
 ##
-## Pure render of `ConfigState` into Niobium widgets. No orchestration or I/O; the
+## Pure render of `ConfigState` into Tatui widgets. No orchestration or I/O; the
 ## state is supplied by the protocol client (`config_tree` / `config_entry`).
 
-import niobium
+import tatui
 import ../theme
 
 type

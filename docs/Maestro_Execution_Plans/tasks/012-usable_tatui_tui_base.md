@@ -1,4 +1,4 @@
-# TASK 012: Usable Niobium TUI Base
+# TASK 012: Usable Tatui TUI Base
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Working multi-agent runtime.

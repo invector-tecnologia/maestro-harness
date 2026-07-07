@@ -1,10 +1,10 @@
-## Headless Workspace snapshot tests (Niobium test backend, no TTY).
+## Headless Workspace snapshot tests (Tatui test backend, no TTY).
 ##
 ## Renders each of the three modes into an in-memory backend and asserts the
 ## plain-text snapshot, plus the pure `applyEvent`/mode-switch state folding.
 
 import std/[json, os, strutils, unittest]
-import niobium
+import tatui
 import "../src/workspace"
 
 proc renderToText(s: WorkspaceState): string =

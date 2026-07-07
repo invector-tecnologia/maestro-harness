@@ -2,11 +2,11 @@
 ##
 ## Immediate-mode tick loop: spawn the headless core (`maestro run`), read its
 ## events over the stdio protocol, fold them into `WorkspaceState`, draw the three
-## mode tabs with Niobium, and forward keyboard input as commands. The draw is a
+## mode tabs with Tatui, and forward keyboard input as commands. The draw is a
 ## pure function of the latest state — no orchestration logic lives here.
 
 import std/[json, options, os, osproc, posix, streams, strutils, unicode]
-import niobium
+import tatui
 import ./protocol
 import ./workspace
 

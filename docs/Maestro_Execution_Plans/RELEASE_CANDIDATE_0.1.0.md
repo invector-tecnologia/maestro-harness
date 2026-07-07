@@ -7,7 +7,7 @@ This checklist consolidates evidence from Task 016 for MLP 0.1.0 validation.
 - [x] `cargo fmt --all --check`
 - [x] `cargo clippy --all-targets -- -D warnings`
 - [x] `cargo test --all-targets`
-- [x] `nimble test` (Nim/Niobium TUI, headless test backend)
+- [x] `nimble test` (Nim/Tatui TUI, headless test backend)
 
 ### Consolidated gate evidence
 - Script executed: `./scripts/quality-gate.sh`
@@ -20,7 +20,7 @@ This checklist consolidates evidence from Task 016 for MLP 0.1.0 validation.
   - Evidence: `application::agent_runtime::tests::{runs_cycle_and_collects_outputs, failing_agent_is_isolated}`
 - [x] Default operational personas (Project Manager / Quality Assurance / User Experience / Software Engineer)
   - Evidence: `application::persona_agent::tests::activates_four_operational_personas`, `domain::models::persona::tests::*`
-- [x] TUI with agent panel, logs, and command input (Nim/Niobium)
+- [x] TUI with agent panel, logs, and command input (Nim/Tatui)
   - Evidence: `frontend/tests/test_dashboard.nim` (headless test-backend snapshot of the dashboard panels)
 - [x] Required persona/scope/skill creation wizards with required-field blocking
   - Evidence: unit tests `application::wizard::tests::*`

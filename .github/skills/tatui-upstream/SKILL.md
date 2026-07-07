@@ -1,24 +1,24 @@
 ---
-name: niobium-upstream
+name: tatui-upstream
 description: >
-  Authoritative reference to the Niobium immediate-mode TUI library for Nim
-  (github.com/invector-tecnologia/niobium). Use when composing Maestro panels
-  from Niobium widgets, the constraint layout engine, the event decoder, the
+  Authoritative reference to the Tatui immediate-mode TUI library for Nim
+  (github.com/invector-tecnologia/tatui). Use when composing Maestro panels
+  from Tatui widgets, the constraint layout engine, the event decoder, the
   tick loop, or the test backend.
 ---
 
-# Niobium Upstream Skill
+# Tatui Upstream Skill
 
-Ground-truth reference for the Niobium TUI library that Maestro's `frontend/` consumes.
+Ground-truth reference for the Tatui TUI library that Maestro's `frontend/` consumes.
 
 ## Authoritative source
-- Repo: `git@github.com:invector-tecnologia/niobium.git` — https://github.com/invector-tecnologia/niobium
-- Pinned in Maestro via `scripts/install-niobium.sh` (commit `0051e112` = v0.1.0). Latest tag v0.1.1.
-- Study `examples/` (`hello.nim` interactive, `demo.nim` headless) and `src/niobium/`
+- Repo: `git@github.com:invector-tecnologia/tatui.git` — https://github.com/invector-tecnologia/tatui
+- Pinned in Maestro via `scripts/install-tatui.sh` (commit `493d9fc0` = v0.1.2). Latest tag v0.1.2.
+- Study `examples/` (`hello.nim` interactive, `demo.nim` headless) and `src/tatui/`
   (`core`, `layout`, `backend`, `terminal`, `event`, `widgets`).
 
 ## Capabilities (v1 core)
-- Immediate mode: rebuild the whole UI each tick from state; Niobium diffs and writes only deltas.
+- Immediate mode: rebuild the whole UI each tick from state; Tatui diffs and writes only deltas.
 - Constraint layout: `f.area.split(Vertical|Horizontal, @[...])` with `length`, `percentage`,
   `ratio`, `min`, `max`, `fill`.
 - Widgets: `Block`, `Paragraph`, `List`, `Table`, `Tabs`, `Clear`, `Gauge`, `Sparkline`, `BarChart`,
@@ -34,5 +34,5 @@ Ground-truth reference for the Niobium TUI library that Maestro's `frontend/` co
   release notes via `split(Horizontal, ...)`.
 
 ## Guardrails
-- Spec-first, like Niobium itself: adjust the panel spec, add a failing test-backend snapshot, implement.
-- Do not reimplement primitives Niobium already ships; compose them.
+- Spec-first, like Tatui itself: adjust the panel spec, add a failing test-backend snapshot, implement.
+- Do not reimplement primitives Tatui already ships; compose them.

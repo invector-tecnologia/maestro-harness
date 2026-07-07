@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Aggregate quality gate for Maestro. Runs the cheap → expensive checks for whichever
-# stacks are present (Rust core and/or Nim/Niobium TUI). Skips a stack that is not yet scaffolded.
+# stacks are present (Rust core and/or Nim/Tatui TUI). Skips a stack that is not yet scaffolded.
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/.." && pwd)"
@@ -25,7 +25,7 @@ else
 fi
 
 if ls frontend/*.nimble >/dev/null 2>&1; then
-  echo "== Nim/Niobium TUI =="
+  echo "== Nim/Tatui TUI =="
   if command -v nph >/dev/null 2>&1; then
     run nph --check frontend
   else
@@ -33,7 +33,7 @@ if ls frontend/*.nimble >/dev/null 2>&1; then
   fi
   ( cd frontend && run nimble test )
 else
-  echo "== Nim/Niobium TUI: no frontend/*.nimble, skipping =="
+  echo "== Nim/Tatui TUI: no frontend/*.nimble, skipping =="
 fi
 
 if [[ "$fail" -ne 0 ]]; then

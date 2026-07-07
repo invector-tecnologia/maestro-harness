@@ -7,9 +7,9 @@ prototypes) fully offline, with no external tokens required.
 - **Rust is the brain.** The orchestration core (FSM, scheduler, state, git governance, Two-Towers
   persona/skill routing, multi-model runtime) lives in Rust for predictable execution, memory
   safety, and performance.
-- **Nim + Niobium is the nervous system.** The interactive TUI is a separate Nim process that
-  **consumes [Niobium](https://github.com/invector-tecnologia/niobium)** (an immediate-mode,
-  ratatui-inspired Nim TUI library) as a `nimble` dependency. Maestro does **not** build Niobium;
+- **Nim + Tatui is the nervous system.** The interactive TUI is a separate Nim process that
+  **consumes [Tatui](https://github.com/invector-tecnologia/tatui)** (an immediate-mode,
+  ratatui-inspired Nim TUI library) as a `nimble` dependency. Maestro does **not** build Tatui;
   it depends on it.
 
 ## Mental model
@@ -27,7 +27,7 @@ prototypes) fully offline, with no external tokens required.
 
 1. **Hexagonal core (ports & adapters).** `domain` is pure (no I/O, no provider SDKs); `application`
    orchestrates; `infrastructure` adapts external systems; `presentation` is the CLI + IPC surface.
-2. **Two-process boundary.** The Rust core and the Nim/Niobium TUI are **separate processes** that
+2. **Two-process boundary.** The Rust core and the Nim/Tatui TUI are **separate processes** that
    communicate over a **line-delimited JSON protocol on stdio** — never linked via FFI. The core is
    headless and fully usable with `--no-tui`; the TUI is a thin renderer of core events.
 3. **Governed execution.** No environment-affecting action runs without (a) explicit user approval
@@ -48,7 +48,7 @@ prototypes) fully offline, with no external tokens required.
   through a port (trait).
 - **IPC discipline.** The Rust↔Nim contract is versioned and schema-checked; neither side may assume
   the other's internal types. The protocol is the only coupling point.
-- **Niobium is a dependency.** Frontend Nim code lives under `frontend/` and only *consumes* Niobium
+- **Tatui is a dependency.** Frontend Nim code lives under `frontend/` and only *consumes* Tatui
   widgets; it does not re-implement TUI primitives.
 
 ## Platform scope
@@ -59,7 +59,7 @@ Gemini) optional. Windows is not targeted (WSL2 for development only).
 ## Conventions
 
 - **Rust:** edition-current, `cargo fmt`, `cargo clippy -D warnings`. DDD layering under `src/`.
-- **Nim frontend:** Nim ≥ 2.0, `--mm:orc`, formatted with `nph`, `requires "niobium >= 0.1.0"`.
+- **Nim frontend:** Nim ≥ 2.0, `--mm:orc`, formatted with `nph`, `requires "tatui >= 0.1.0"`.
 - **Error handling:** `Result` everywhere; surface failures early through quality gates.
 - **Spec-first:** write/adjust the task spec in `docs/Maestro_Execution_Plans/tasks/`, add a failing
   test, then implement.

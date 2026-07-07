@@ -5,12 +5,12 @@ _Date: 2026-07-07._
 ## Summary
 RC 0.3.0 delivers the **three-mode Workspace** pivot (ADR
 [0002](../adr/0002-three-mode-workspace-and-interview-removal.md)) and retires interview/onboarding
-mode. The Rust core is the headless brain; the Nim/Niobium TUI renders three modes over the v2 stdio
+mode. The Rust core is the headless brain; the Nim/Tatui TUI renders three modes over the v2 stdio
 protocol (ADR [0003](../adr/0003-ipc-v2-mode-scoped-protocol.md)).
 
 ## Scope delivered (tasks 053–058)
 - **W1 — Boundary & shell (053):** protocol v2, duplex `maestro run`, `maestro tui`, plain-CLI
-  `maestro init`, three-tab Niobium Workspace with a real tick loop.
+  `maestro init`, three-tab Tatui Workspace with a real tick loop.
 - **W2 — Config Mode (054):** governance CRUD + archive for config + personas/skills/scopes (defaults
   and customs); the Maestro persona is immutable. Absorbs the former Architect Mode.
 - **W3 — Maestro Mode (055):** six-stage FSM, deterministic Two-Towers routing, serial cascade,

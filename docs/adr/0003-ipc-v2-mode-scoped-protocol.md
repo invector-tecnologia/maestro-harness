@@ -5,7 +5,7 @@
 - Deciders: Maestro maintainers
 
 ## Context
-The v1 stdio protocol (ADR [0001](0001-rust-core-nim-niobium-tui-stdio-protocol.md)) defines a small
+The v1 stdio protocol (ADR [0001](0001-rust-core-nim-tatui-stdio-protocol.md)) defines a small
 event/command set sufficient for a single dashboard: `agent_state`, `fsm_transition`, `log`,
 `metric`, `heartbeat`, `approval_request` (core→TUI) and `user_input`, `command`,
 `approval_response` (TUI→core). The three-mode Workspace (ADR

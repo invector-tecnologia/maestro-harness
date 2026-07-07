@@ -3,7 +3,7 @@
 ## Pure render of `MaestroState`: the personas Maestro delegates to (left) and the
 ## live narration / FSM stage (right). State is supplied by the protocol client.
 
-import niobium
+import tatui
 import ../theme
 
 type

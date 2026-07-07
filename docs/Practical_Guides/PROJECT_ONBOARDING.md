@@ -29,12 +29,12 @@ cargo test --all-targets
 scripts/quality-gate.sh
 ```
 
-### Nim / Niobium TUI
+### Nim / Tatui TUI
 ```bash
-scripts/install-niobium.sh      # resolve the pinned Niobium commit
+scripts/install-tatui.sh      # resolve the pinned Tatui commit
 cd frontend
 nph --check .                   # formatting
-nimble test                     # headless Niobium test-backend snapshots
+nimble test                     # headless Tatui test-backend snapshots
 ```
 
 ## How the two processes connect
@@ -48,4 +48,4 @@ nimble test                     # headless Niobium test-backend snapshots
 ## Troubleshooting
 - `maestro doctor` — verifies config load + governance scaffold.
 - `maestro validate-config` — validates `config.yml` cross-references.
-- Niobium is not on the nimble registry; run `scripts/install-niobium.sh` before building the TUI.
+- Tatui is not on the nimble registry; run `scripts/install-tatui.sh` before building the TUI.

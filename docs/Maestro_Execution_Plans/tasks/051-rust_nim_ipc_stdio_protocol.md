@@ -2,7 +2,7 @@
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Rust core events, TUI commands.
-* **Context Anchors:** #file:docs/adr/0001-rust-core-nim-niobium-tui-stdio-protocol.md, #file:docs/Maestro_Manifesto/ARCHITECTURE.md
+* **Context Anchors:** #file:docs/adr/0001-rust-core-nim-tatui-stdio-protocol.md, #file:docs/Maestro_Manifesto/ARCHITECTURE.md
 * **Expected Output:** A versioned, schema-checked line-delimited JSON protocol on stdio.
 
 ## 2. ABSOLUTE CONSTRAINTS (1.58-bit Constraint)

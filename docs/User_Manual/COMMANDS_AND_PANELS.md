@@ -10,7 +10,7 @@
   **layout reference image paths** (optional, repeated until you answer `No`). Scaffolds the
   governance defaults + `maestro/config.yml`, writes the answers into the primary scope file, then
   opens the Workspace on **Maestro Mode**.
-- `maestro tui`: Launches the Nim/Niobium Workspace TUI (which spawns the headless core).
+- `maestro tui`: Launches the Nim/Tatui Workspace TUI (which spawns the headless core).
 - `maestro run`: Runs the headless duplex core — reads `TuiCommand` frames on stdin and writes
   `CoreEvent` frames on stdout (protocol v2). This is what the TUI drives; also useful for scripting.
 - `maestro validate-config`: Validates `maestro/config.yml` and its cross-references.

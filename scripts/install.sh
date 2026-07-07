@@ -3,7 +3,7 @@
 #
 # One command to go from a fresh checkout to an installed `maestro` binary.
 # It detects (and optionally installs) the toolchain, builds the Rust core,
-# optionally builds the Nim/Niobium TUI, and copies the binary onto your PATH.
+# optionally builds the Nim/Tatui TUI, and copies the binary onto your PATH.
 #
 # No project knowledge required. Just run:
 #
@@ -159,9 +159,9 @@ install_core() {
 }
 
 build_tui() {
-  step "Building the Nim/Niobium TUI"
+  step "Building the Nim/Tatui TUI"
   export PATH="$HOME/.nimble/bin:$PATH"
-  "$ROOT/scripts/install-niobium.sh"
+  "$ROOT/scripts/install-tatui.sh"
   ( cd frontend && nimble install -y --depsOnly && nimble build )
   if [[ -x frontend/maestro_tui ]]; then
     install -m 0755 frontend/maestro_tui "$PREFIX/maestro_tui"

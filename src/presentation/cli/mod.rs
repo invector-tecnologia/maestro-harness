@@ -18,7 +18,7 @@ use crate::domain::models::default_personas;
     about = "Maestro — tactical agentic orchestrator"
 )]
 pub struct Cli {
-    /// Run headless, without launching the Nim/Niobium TUI.
+    /// Run headless, without launching the Nim/Tatui TUI.
     #[arg(long, global = true)]
     pub no_tui: bool,
 
@@ -43,7 +43,7 @@ pub enum Command {
     Doctor,
     /// Run the headless duplex IPC core (reads commands on stdin, writes events on stdout).
     Run,
-    /// Launch the Nim/Niobium Workspace TUI (which spawns the core).
+    /// Launch the Nim/Tatui Workspace TUI (which spawns the core).
     Tui,
     /// Bootstrap a new project (plain-CLI questionnaire), scaffold defaults, then open the Workspace.
     Init {
@@ -191,7 +191,7 @@ fn run_core() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Launch the Nim/Niobium TUI binary (`$MAESTRO_TUI` or `maestro_tui` on PATH).
+/// Launch the Nim/Tatui TUI binary (`$MAESTRO_TUI` or `maestro_tui` on PATH).
 fn launch_tui() -> anyhow::Result<()> {
     let bin = std::env::var("MAESTRO_TUI").unwrap_or_else(|_| "maestro_tui".to_string());
     let status = std::process::Command::new(&bin)

@@ -1,16 +1,16 @@
 ---
 applyTo: "frontend/**/*.nim"
-description: "Use when writing Maestro's Nim TUI that consumes Niobium: widget composition, constraint layout, the stdio protocol client, and headless snapshot tests."
+description: "Use when writing Maestro's Nim TUI that consumes Tatui: widget composition, constraint layout, the stdio protocol client, and headless snapshot tests."
 ---
 
-# Nim Frontend Rules (Niobium consumer)
+# Nim Frontend Rules (Tatui consumer)
 
-Maestro's TUI is a **consumer** of [Niobium](https://github.com/invector-tecnologia/niobium), never a
+Maestro's TUI is a **consumer** of [Tatui](https://github.com/invector-tecnologia/tatui), never a
 re-implementation of it. Frontend Nim code lives under `frontend/`.
 
 ## Dependency & toolchain
-- Declare a bare `requires "niobium"` in `frontend/*.nimble` and install it via `scripts/install-niobium.sh` (the exact pinned commit behind niobium v0.1.0); it is not on the nimble registry yet. Nim ≥ 2.0, `--mm:orc`, formatted with `nph`.
-- Use only Niobium's public API: `newTerminal(newAnsiBackend())`, `term.setup()` /
+- Declare a bare `requires "tatui"` in `frontend/*.nimble` and install it via `scripts/install-tatui.sh` (the exact pinned commit behind tatui v0.1.2); it is not on the nimble registry yet. Nim ≥ 2.0, `--mm:orc`, formatted with `nph`.
+- Use only Tatui's public API: `newTerminal(newAnsiBackend())`, `term.setup()` /
   `defer term.restore()`, `term.draw proc(f: var Frame) = ...`, `f.renderWidget(w, rect)`.
 
 ## Composition
@@ -27,5 +27,5 @@ re-implementation of it. Frontend Nim code lives under `frontend/`.
 - Terminal state (raw mode, alt screen) must be restored via `defer` even on error.
 
 ## Testing
-- Assert rendering with Niobium's **test backend** (renders a `Buffer` to text, no TTY) against
+- Assert rendering with Tatui's **test backend** (renders a `Buffer` to text, no TTY) against
   golden snapshots under `frontend/tests/`. Changing a golden file must be intentional.

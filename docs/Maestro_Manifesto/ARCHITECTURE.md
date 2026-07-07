@@ -5,7 +5,7 @@ Maestro AI Harness is a complete multi-agent orchestration ecosystem for softwar
 - **Actor Model (Event-Driven):** Agents are autonomous entities running in async tasks (`tokio::spawn`) and communicating only through asynchronous message exchange.
 - **Hexagonal Architecture (Ports and Adapters):** Strict isolation between agent decision logic (Domain) and external AI/system APIs (Infrastructure).
 - **AI Harness (Control and Evaluation):** A safe sandbox where AIs run with scoped context, token monitoring, and continuous validation (Quality Gates) before executing tasks.
-- **Two-Process Split:** A headless **Rust core** (the brain) and a separate **Nim/Niobium TUI** (the nervous system) that communicate only over a line-delimited JSON protocol on stdio. The core is fully usable with `--no-tui`; the TUI never embeds core logic.
+- **Two-Process Split:** A headless **Rust core** (the brain) and a separate **Nim/Tatui TUI** (the nervous system) that communicate only over a line-delimited JSON protocol on stdio. The core is fully usable with `--no-tui`; the TUI never embeds core logic.
 
 ## 2. Directory Topology (Strict DDD)
 All generated code must respect the following segregation in `src/`:
@@ -29,16 +29,16 @@ src/
 The interactive TUI is a **separate Nim process**, not a Rust module:
 
 ```text
-frontend/            # Nim/Niobium TUI process (consumes Niobium via nimble).
-├── maestro_tui.nimble   # requires "niobium >= 0.1.0"
+frontend/            # Nim/Tatui TUI process (consumes Tatui via nimble).
+├── maestro_tui.nimble   # requires "tatui >= 0.1.0"
 ├── src/
 │   ├── app.nim      # tick loop: read core events, render frame, forward input.
 │   ├── protocol.nim # decode/encode the stdio JSON contract (mirrors src/presentation/ipc).
-│   └── panels/      # chat, agents, fsm stepper, logs, projects, metrics (Niobium widgets only).
-└── tests/           # golden snapshots via Niobium's test backend (no TTY).
+│   └── panels/      # chat, agents, fsm stepper, logs, projects, metrics (Tatui widgets only).
+└── tests/           # golden snapshots via Tatui's test backend (no TTY).
 ```
 
-Niobium is a **dependency**, never vendored or re-implemented. Panels compose only shipped Niobium
+Tatui is a **dependency**, never vendored or re-implemented. Panels compose only shipped Tatui
 widgets (Block, Paragraph, List, Table, Tabs, Clear, Gauge, Sparkline, BarChart, Scrollbar, Chart)
 and constraint layout (`Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill`).
 
@@ -80,5 +80,5 @@ reproducible choice. Routing is a domain/application concern — no ad-hoc heuri
   commands (`user_input`, `command`, `approval_response`).
 - The protocol is **versioned and schema-checked**. Neither side may assume the other's internal
   types. Changing the contract requires an ADR in `docs/adr/`.
-- Rationale for a process boundary (not FFI): Niobium is a Nim `nimble` library, so the TUI is a
+- Rationale for a process boundary (not FFI): Tatui is a Nim `nimble` library, so the TUI is a
   distinct runtime; the stdio protocol keeps the core headless, testable, and CI-friendly.

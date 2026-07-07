@@ -1,23 +1,23 @@
 ---
-name: niobium-frontend
-description: "Use when building or reviewing Maestro's Nim/Niobium TUI: mapping Maestro panels to Niobium widgets, constraint layout, the stdio protocol client, and headless snapshot tests."
+name: tatui-frontend
+description: "Use when building or reviewing Maestro's Nim/Tatui TUI: mapping Maestro panels to Tatui widgets, constraint layout, the stdio protocol client, and headless snapshot tests."
 ---
 
-# Niobium Frontend Skill
+# Tatui Frontend Skill
 
 ## Use When
 - Building or changing a TUI panel in `frontend/`.
 - Wiring the TUI to the Rust core's stdio protocol.
 
-## Niobium at a glance
-- Install (not on the nimble registry yet): run `scripts/install-niobium.sh` (installs the exact commit behind niobium v0.1.0, Nim ≥ 2.0). Declare a bare `requires "niobium"` in the nimble file.
-- Immediate mode: redraw the whole UI each tick from state; Niobium diffs and writes only changes.
+## Tatui at a glance
+- Install (not on the nimble registry yet): run `scripts/install-tatui.sh` (installs the exact commit behind tatui v0.1.2, Nim ≥ 2.0). Declare a bare `requires "tatui"` in the nimble file.
+- Immediate mode: redraw the whole UI each tick from state; Tatui diffs and writes only changes.
 - Constraint layout: `Length`, `Percentage`, `Ratio`, `Min`, `Max`, `Fill`; split with `f.area.split(...)`.
 - Test backend renders a `Buffer` to text with no TTY → golden snapshots in CI.
 
 ### API taste
 ```nim
-import niobium
+import tatui
 var term = newTerminal(newAnsiBackend())
 term.setup()
 defer: term.restore()
@@ -28,7 +28,7 @@ term.draw proc(f: var Frame) =
 ```
 
 ## Panel → widget map
-| Maestro panel | Niobium widgets |
+| Maestro panel | Tatui widgets |
 |---|---|
 | Chat / conversation | Block + Paragraph + List + Scrollbar |
 | Agent roster + status (`idle/observe/think/act/error`) | Table/List + Gauge |
@@ -40,7 +40,7 @@ term.draw proc(f: var Frame) =
 | Approval / rollback modal | Clear + Block + Paragraph + List |
 
 ## Rules
-- Consume Niobium only; never re-implement buffer/diff/backend/layout.
+- Consume Tatui only; never re-implement buffer/diff/backend/layout.
 - Keep the draw function a pure function of the latest core snapshot; no business logic in the TUI.
 - Talk to the core only via the line-delimited JSON stdio protocol (`protocol.nim`).
 - Restore terminal state with `defer` even on error.

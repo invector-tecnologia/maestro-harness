@@ -17,7 +17,7 @@ personas, (b) lets the user watch Maestro orchestrate work, and (c) lets the use
 
 ## Decision
 Replace all interview/onboarding UX with one **Workspace** application exposing exactly three modes,
-switchable via a Niobium `Tabs` header:
+switchable via a Tatui `Tabs` header:
 
 - **Config Mode** — the single governance surface. View, create, edit, update, and **archive** both
   **defaults** and **customs** of `maestro/config.yml` and the governance markdown (personas /

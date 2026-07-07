@@ -1,4 +1,4 @@
-# TASK 018: Project Guided Setup Onboarding in Niobium
+# TASK 018: Project Guided Setup Onboarding in Tatui
 
 ## 1. TASK SIGNATURE (DSPy Architecture)
 * **Inputs:** Config loader, markdown governance, runtime/TUI.
@@ -13,7 +13,7 @@
 ## 3. EXECUTION PROMPT (Paste into Copilot Chat)
 """
 Act as a Platform UX Engineer for guided project setup.
-Goal: Implement Maestro's new-project onboarding in Niobium.
+Goal: Implement Maestro's new-project onboarding in Tatui.
 
 Before generating code, open a `<reasoning>` block and validate robustness in an environment without an active provider.
 

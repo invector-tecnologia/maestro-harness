@@ -2,7 +2,7 @@
 //!
 //! Guided creation of personas/scopes/skills. This module holds the wizard's
 //! required-field logic (pure and testable); the interactive TUI presentation
-//! composes it with Niobium panels in the frontend.
+//! composes it with Tatui panels in the frontend.
 
 use std::collections::BTreeMap;
 

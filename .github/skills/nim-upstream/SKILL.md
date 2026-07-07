@@ -21,10 +21,10 @@ Ground-truth reference for the Nim language and standard library used by Maestro
 - Formatting/build questions: `nph`, `nimble`, Nim ≥ 2.0 features.
 
 ## How to use it in Maestro
-- Prefer local conventions first: the `niobium-frontend` skill and `.github/instructions/nim-frontend`.
+- Prefer local conventions first: the `tatui-frontend` skill and `.github/instructions/nim-frontend`.
 - The frontend targets Nim ≥ 2.0 with `--mm:orc`; ignore pre-2.0 or GC-specific upstream guidance.
 - Cite exact upstream paths/permalinks when relying on upstream behavior.
 
 ## Guardrails
 - The TUI is a thin renderer: no orchestration logic in Nim; the draw is a pure function of state.
-- Frontend Nim only *consumes* Niobium widgets; it does not reimplement TUI primitives.
+- Frontend Nim only *consumes* Tatui widgets; it does not reimplement TUI primitives.

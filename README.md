@@ -2,7 +2,7 @@
 
 **You are the orchestrator. This harness executes your vision.**
 
-Maestro is a **relentless AI command deck**: a headless **Rust core** for blazing speed and rock-solid safety, paired with a separate **Nim/Niobium TUI** for a flicker-free interactive command deck. Instead of coordinating human developers, you coordinate, test, and manage a **team of AI agents** to architect and build software on your command.
+Maestro is a **relentless AI command deck**: a headless **Rust core** for blazing speed and rock-solid safety, paired with a separate **Nim/Tatui TUI** for a flicker-free interactive command deck. Instead of coordinating human developers, you coordinate, test, and manage a **team of AI agents** to architect and build software on your command.
 
 Fire up the TUI. Define your personas, scopes, and skills. Watch your AI team synthesize, execute, and iterate. No memorized commands. No friction. Just pure orchestration.
 
@@ -28,7 +28,7 @@ Fire up the TUI. Define your personas, scopes, and skills. Watch your AI team sy
 
 ## 🌟 Core Capabilities
 
-Maestro's brain is **Rust-native**. Fast. Uncompromising. Its interactive **TUI** (Terminal User Interface) is a separate Nim process that consumes [Niobium](https://github.com/invector-tecnologia/niobium) — an immediate-mode, ratatui-inspired Nim TUI library — delivering menus, tables, real-time logs, and keyboard shortcuts over a line-delimited JSON protocol, all without terminal bloat or command memorization. The core stays fully usable headless with `--no-tui`.
+Maestro's brain is **Rust-native**. Fast. Uncompromising. Its interactive **TUI** (Terminal User Interface) is a separate Nim process that consumes [Tatui](https://github.com/invector-tecnologia/tatui) — an immediate-mode, ratatui-inspired Nim TUI library — delivering menus, tables, real-time logs, and keyboard shortcuts over a line-delimited JSON protocol, all without terminal bloat or command memorization. The core stays fully usable headless with `--no-tui`.
 
 ### ⚡ What You Control
 * **🚧 Multi-Provider AI Synthesis:** Run models locally and free with **Ollama** (no API key) — the reference adapter is **operational** and resolved through the provider registry. An **OpenAI-compatible** adapter is also operational (key via `OPENAI_API_KEY`, never config files); native **Anthropic** and **Google Gemini** adapters are planned. Configuration supports **per-agent model routing** (each persona can pin a provider + model); unlisted personas fall back to `system.default_provider`/`default_model`, and Maestro **fails fast** on startup if a referenced pair is undeclared.
@@ -60,7 +60,7 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.3.0
 | Level | Status | Examples |
 |-------|--------|----------|
 | **Foundational** | ✅ Complete | `maestro init-config`, `maestro validate-config`, `maestro doctor` readiness checks, `maestro scaffold-markdown` |
-| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), three-mode Nim/Niobium Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
+| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), three-mode Nim/Tatui Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
 | **Advanced** | 📋 Planned | Governed micro-project execution (FSM · cascade · rollback · git persistence), accessibility controls, cross-platform packaging |
 | **Enterprise** | 📋 Roadmap | Compliance reporting, policy extension, audit analytics |
 
@@ -72,7 +72,7 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.3.0
 
 **⚠️ FOR DEVELOPMENT & TESTING ONLY** — This is pre-release software. Suitable for local testing and development workflows. Do not deploy to production environments.
 
-> **0.1.0 reality check:** Only the Debian build script (`./scripts/build-deb.sh`) exists today. The install one-liner and the macOS/Arch packaging scripts below are on the roadmap. For now, build from source: `cargo build --release` for the core, and `./scripts/install-niobium.sh` + `nimble build` in `frontend/` for the Nim/Niobium TUI.
+> **0.1.0 reality check:** Only the Debian build script (`./scripts/build-deb.sh`) exists today. The install one-liner and the macOS/Arch packaging scripts below are on the roadmap. For now, build from source: `cargo build --release` for the core, and `./scripts/install-tatui.sh` + `nimble build` in `frontend/` for the Nim/Tatui TUI.
 
 **Open your terminal.** On macOS and Linux: search for "Terminal". On Windows: open "PowerShell" or "Command Prompt".
 
@@ -181,7 +181,7 @@ agents:
 3. **INSPECT** — `maestro list-agents` catalogs the registered personas; `maestro doctor` runs readiness checks (configuration + governance scaffold).
 4. **HEADLESS** — every command accepts the global `--no-tui` flag for CI/automation.
 
-> **Interactive Workspace (0.3.0):** `maestro init` (plain-CLI bootstrap), `maestro tui`, and `maestro run` — the three-mode Nim/Niobium Workspace (Config · Maestro · Product) over the stdio protocol v2. Interview/onboarding mode was removed; see [ADR 0002](docs/adr/0002-three-mode-workspace-and-interview-removal.md).
+> **Interactive Workspace (0.3.0):** `maestro init` (plain-CLI bootstrap), `maestro tui`, and `maestro run` — the three-mode Nim/Tatui Workspace (Config · Maestro · Product) over the stdio protocol v2. Interview/onboarding mode was removed; see [ADR 0002](docs/adr/0002-three-mode-workspace-and-interview-removal.md).
 
 ### ⚡ Utility Commands (0.1.0)
 
