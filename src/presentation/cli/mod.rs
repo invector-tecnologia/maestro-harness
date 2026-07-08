@@ -73,7 +73,7 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
         }
         Command::Doctor => doctor(&root)?,
         Command::Run => run_core()?,
-        Command::Tui => launch_tui()?,
+        Command::Tui => launch_tui(None)?,
         Command::Init { name } => init_project(name)?,
     }
     Ok(())
@@ -192,9 +192,13 @@ fn run_core() -> anyhow::Result<()> {
 }
 
 /// Launch the Nim/Tatui TUI binary (`$MAESTRO_TUI` or `maestro_tui` on PATH).
-fn launch_tui() -> anyhow::Result<()> {
+fn launch_tui(cwd: Option<&std::path::Path>) -> anyhow::Result<()> {
     let bin = std::env::var("MAESTRO_TUI").unwrap_or_else(|_| "maestro_tui".to_string());
-    let status = std::process::Command::new(&bin)
+    let mut cmd = std::process::Command::new(&bin);
+    if let Some(dir) = cwd {
+        cmd.current_dir(dir);
+    }
+    let status = cmd
         .status()
         .map_err(|e| anyhow::anyhow!("failed to launch TUI '{bin}': {e}"))?;
     if !status.success() {
@@ -296,17 +300,22 @@ pub fn scaffold_project(root: &Path, answers: &InitAnswers) -> std::io::Result<V
 
 /// Interactive bootstrap: collect answers, scaffold, then open the Workspace.
 fn init_project(name: Option<String>) -> anyhow::Result<()> {
-    let root = std::env::current_dir()?;
+    let base = std::env::current_dir()?;
     let stdin = std::io::stdin();
     let answers = prompt_answers(stdin.lock(), std::io::stdout(), name)?;
-    let created = scaffold_project(&root, &answers)?;
+    
+    let target_dir = base.join(&answers.name);
+    std::fs::create_dir_all(&target_dir)?;
+
+    let created = scaffold_project(&target_dir, &answers)?;
     print_line(&format!(
-        "scaffolded project '{}': {}",
+        "scaffolded project '{}' in '{}': {}",
         answers.name,
+        target_dir.display(),
         created.join(", ")
     ));
     print_line("opening Workspace (Maestro Mode)\u{2026}");
-    if let Err(e) = launch_tui() {
+    if let Err(e) = launch_tui(Some(&target_dir)) {
         print_line(&format!("(TUI not launched: {e})"));
     }
     Ok(())
