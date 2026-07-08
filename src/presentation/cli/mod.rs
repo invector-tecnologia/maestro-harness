@@ -191,9 +191,9 @@ fn run_core() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Launch the Nim/Tatui TUI binary (`$MAESTRO_TUI` or `maestro_tui` on PATH).
+/// Launch the Nim/Tatui TUI binary (`$MAESTRO_TUI` or `./frontend/maestro_tui`).
 fn launch_tui(cwd: Option<&std::path::Path>) -> anyhow::Result<()> {
-    let bin = std::env::var("MAESTRO_TUI").unwrap_or_else(|_| "maestro_tui".to_string());
+    let bin = std::env::var("MAESTRO_TUI").unwrap_or_else(|_| "./frontend/maestro_tui".to_string());
     let mut cmd = std::process::Command::new(&bin);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
