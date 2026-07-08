@@ -1,8 +1,14 @@
-.PHONY: all build build-frontend build-backend clean run test test-frontend test-backend
+.PHONY: all build build-frontend build-backend build-release clean run test test-frontend test-backend install
+
+PREFIX ?= $(HOME)/.cargo
 
 all: build
 
 build: build-backend build-frontend
+
+build-release:
+	cargo build --release
+	cd frontend && nimble build -y -d:release
 
 build-frontend:
 	cd frontend && nimble build -y
@@ -24,3 +30,8 @@ test-backend:
 
 test-frontend:
 	cd frontend && nimble test
+
+install: build-release
+	install -d $(PREFIX)/bin
+	install -m 755 target/release/maestro $(PREFIX)/bin/
+	install -m 755 frontend/maestro_tui $(PREFIX)/bin/
