@@ -2,8 +2,7 @@
 
 > **Audience:** future AI agent (and human) sessions. Read this first to know what
 > exists, what's next, and how to proceed without re-deriving the plan.
-> Complements [AGENTS.md](../../AGENTS.md) (operating contract) and
-> [.github/copilot-instructions.md](../../.github/copilot-instructions.md) (invariants).
+> Complements [AGENTS.md](../../AGENTS.md) (operating contract and invariants).
 
 _Last updated: 2026-07-07._
 
@@ -64,7 +63,7 @@ Implemented modules:
 ## 5. How to continue (per-task loop — from AGENTS.md)
 
 1. **Plan** — read the task file in `docs/Maestro_Execution_Plans/tasks/`, relevant ADRs, and the
-   matching `.github/instructions/`.
+   matching Component Instructions in `AGENTS.md`.
 2. **Red** — write a failing test (Rust `#[cfg(test)]`, or Nim golden snapshot via Tatui's test backend).
 3. **Implement** — minimal code; respect the invariants (no `unwrap`/`expect`/`panic!`;
    `Arc<tokio::sync::RwLock>`; `tracing` only; `domain` imports nothing outward).

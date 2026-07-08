@@ -12,6 +12,7 @@ use thiserror::Error;
 use crate::domain::models::config::{MaestroConfig, ProviderConfig};
 use crate::domain::ports::LlmProvider;
 
+use super::gemini::GeminiProvider;
 use super::ollama::OllamaProvider;
 use super::openai::OpenAiProvider;
 
@@ -95,6 +96,15 @@ fn build_provider(
                 })?;
             Ok(Arc::new(provider))
         }
+        "gemini" => {
+            let api_key = std::env::var("GEMINI_API_KEY").unwrap_or_default();
+            let provider = GeminiProvider::new(&config.endpoint, api_key, DEFAULT_TIMEOUT)
+                .map_err(|source| FactoryError::Build {
+                    key: key.to_string(),
+                    source,
+                })?;
+            Ok(Arc::new(provider))
+        }
         other => Err(FactoryError::UnsupportedKind(other.to_string())),
     }
 }
@@ -148,6 +158,16 @@ mod tests {
         let mut config = config_with_kind("openai");
         config.providers.get_mut("ollama").unwrap().endpoint =
             "https://api.openai.com/v1".to_string();
+        let registry = ProviderRegistry::from_config(&config).unwrap();
+        assert_eq!(registry.len(), 1);
+        assert!(registry.resolve("ollama").is_some());
+    }
+
+    #[test]
+    fn builds_and_resolves_gemini() {
+        let mut config = config_with_kind("gemini");
+        config.providers.get_mut("ollama").unwrap().endpoint =
+            "https://generativelanguage.googleapis.com".to_string();
         let registry = ProviderRegistry::from_config(&config).unwrap();
         assert_eq!(registry.len(), 1);
         assert!(registry.resolve("ollama").is_some());
