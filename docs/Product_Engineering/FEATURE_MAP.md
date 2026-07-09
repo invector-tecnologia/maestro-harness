@@ -259,10 +259,13 @@ Each feature is described with a standardized card:
 - **Business Value:** 🔴 Critical
 - **What It Does Today:** Concurrent `JoinSet` runs all agents' cognitive cycles in parallel
   (read-only). Failing agents are isolated. `BroadcastBus<RuntimeEvent>` for event fan-out.
-- **What It Should Do:** Agent memory (short-term context, long-term vector store). Agent-to-agent
-  messaging. Backpressure and token budgets per agent. Streaming intermediate results. Agent
-  lifecycle management (spawn, pause, resume, terminate).
-- **Gap:** Agents are stateless, memoryless, and can't communicate with each other.
+  Short-term memory accumulates context across cycles with configurable capacity. Inter-agent
+  message bus lets agents observe each other's outputs. Agent lifecycle tracking with
+  spawn/terminate/status.
+- **What It Should Do:** Agent long-term vector store. Backpressure and token budgets per agent.
+  Streaming intermediate results. Cross-session persistence.
+- **Gap:** No long-term vector-store memory (requires embeddings). No token budgets or
+  backpressure. No streaming intermediate results. No cross-session persistence.
 - **Competitor Benchmark:**
   - *MetaGPT*: Agents observe each other's outputs via shared environment
   - *Maestri*: Visual cables connect agents for direct communication + shared memory

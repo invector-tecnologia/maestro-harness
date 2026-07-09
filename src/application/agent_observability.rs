@@ -20,6 +20,10 @@ pub enum RuntimeEvent {
     AgentActed { agent: AgentId, produced: bool },
     /// The agent failed and was isolated (never silently dropped).
     AgentFailed { agent: AgentId, error: String },
+    /// An agent published a message to the inter-agent bus.
+    AgentPublished { agent: AgentId },
+    /// An agent's lifecycle status changed.
+    AgentLifecycle { agent: AgentId, status: String },
 }
 
 impl RuntimeEvent {
@@ -31,7 +35,9 @@ impl RuntimeEvent {
             | RuntimeEvent::AgentActing { agent }
             | RuntimeEvent::AgentReflected { agent, .. }
             | RuntimeEvent::AgentActed { agent, .. }
-            | RuntimeEvent::AgentFailed { agent, .. } => agent,
+            | RuntimeEvent::AgentFailed { agent, .. }
+            | RuntimeEvent::AgentPublished { agent, .. }
+            | RuntimeEvent::AgentLifecycle { agent, .. } => agent,
         }
     }
 
@@ -55,6 +61,12 @@ impl RuntimeEvent {
             }
             RuntimeEvent::AgentFailed { agent, error } => {
                 tracing::error!(agent = %agent, phase = "failed", error, "agent failed")
+            }
+            RuntimeEvent::AgentPublished { agent } => {
+                tracing::info!(agent = %agent, phase = "published", "agent published message")
+            }
+            RuntimeEvent::AgentLifecycle { agent, status } => {
+                tracing::info!(agent = %agent, phase = "lifecycle", status, "agent lifecycle event")
             }
         }
     }
@@ -82,6 +94,11 @@ mod tests {
             RuntimeEvent::AgentFailed {
                 agent: id.clone(),
                 error: "boom".to_string(),
+            },
+            RuntimeEvent::AgentPublished { agent: id.clone() },
+            RuntimeEvent::AgentLifecycle {
+                agent: id.clone(),
+                status: "Running".to_string(),
             },
         ];
         for event in events {

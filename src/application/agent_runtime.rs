@@ -12,23 +12,95 @@
 //! **environment-affecting** steps and is enforced separately by the cascade
 //! executor (TASK 048), which runs strictly serially with rollback + approval gates.
 
+use std::collections::HashMap;
+use std::sync::Arc;
+
+use tokio::sync::RwLock;
 use tokio::task::JoinSet;
 
 use crate::application::agent_observability::RuntimeEvent;
-use crate::domain::models::Message;
+use crate::domain::models::{AgentId, Message};
 use crate::domain::ports::Role;
 use crate::infrastructure::bus::BroadcastBus;
+
+/// Lifecycle status of a registered agent.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AgentStatus {
+    Idle,
+    Running,
+    Terminated,
+}
+
+/// Tracks registered agents and their lifecycle status.
+struct AgentEntry {
+    status: AgentStatus,
+}
 
 /// Orchestrates agent cognitive cycles and narrates them.
 #[derive(Clone)]
 pub struct AgentRuntime {
     events: BroadcastBus<RuntimeEvent>,
+    agent_bus: BroadcastBus<Message>,
+    registry: Arc<RwLock<HashMap<AgentId, AgentEntry>>>,
 }
 
 impl AgentRuntime {
     /// Build a runtime that narrates onto `events`.
-    pub fn new(events: BroadcastBus<RuntimeEvent>) -> Self {
-        Self { events }
+    pub fn new(events: BroadcastBus<RuntimeEvent>, agent_bus: BroadcastBus<Message>) -> Self {
+        Self {
+            events,
+            agent_bus,
+            registry: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    /// Register an agent in the runtime.
+    pub async fn register(&self, id: AgentId) {
+        self.registry.write().await.insert(
+            id.clone(),
+            AgentEntry {
+                status: AgentStatus::Idle,
+            },
+        );
+        emit(
+            &self.events,
+            RuntimeEvent::AgentLifecycle {
+                agent: id,
+                status: "Registered".to_string(),
+            },
+        )
+        .await;
+    }
+
+    /// Terminate an agent.
+    pub async fn terminate(&self, id: &AgentId) {
+        if let Some(entry) = self.registry.write().await.get_mut(id) {
+            entry.status = AgentStatus::Terminated;
+            emit(
+                &self.events,
+                RuntimeEvent::AgentLifecycle {
+                    agent: id.clone(),
+                    status: "Terminated".to_string(),
+                },
+            )
+            .await;
+        }
+    }
+
+    /// Query the status of an agent.
+    pub async fn status(&self, id: &AgentId) -> Option<AgentStatus> {
+        self.registry.read().await.get(id).map(|e| e.status)
+    }
+
+    /// List all non-terminated agents.
+    pub async fn active_agents(&self) -> Vec<AgentId> {
+        self.registry
+            .read()
+            .await
+            .iter()
+            .filter(|(_, e)| e.status != AgentStatus::Terminated)
+            .map(|(id, _)| id.clone())
+            .collect()
     }
 
     /// The narration bus (subscribe to render agent activity).
@@ -43,12 +115,17 @@ impl AgentRuntime {
 
         for mut agent in agents {
             let events = self.events.clone();
+            let agent_bus = self.agent_bus.clone();
             let input = input.clone();
             set.spawn(async move {
                 let id = agent.id().clone();
 
+                let history = agent_bus.history().await;
+                let mut enriched_input = history;
+                enriched_input.extend(input);
+
                 emit(&events, RuntimeEvent::AgentObserving { agent: id.clone() }).await;
-                agent.observe(&input);
+                agent.observe(&enriched_input);
 
                 emit(&events, RuntimeEvent::AgentThinking { agent: id.clone() }).await;
                 let _thinking = agent.think();
@@ -58,6 +135,9 @@ impl AgentRuntime {
                     Ok(output) => {
                         // REFLECT phase: self-critique when output was produced
                         if let Some(ref msg) = output {
+                            agent_bus.publish(msg.clone()).await;
+                            emit(&events, RuntimeEvent::AgentPublished { agent: id.clone() }).await;
+
                             let reflection = agent.reflect(msg);
                             emit(
                                 &events,
@@ -132,7 +212,7 @@ mod tests {
 
     #[tokio::test]
     async fn runs_cycle_and_collects_outputs() {
-        let runtime = AgentRuntime::new(BroadcastBus::new(64, 64));
+        let runtime = AgentRuntime::new(BroadcastBus::new(64, 64), BroadcastBus::new(64, 64));
         let mut narration = runtime.events().subscribe();
 
         let agents = activate_default_agents(ready_provider(), "mistral");
@@ -159,7 +239,7 @@ mod tests {
             .returning(|_r| Err(crate::domain::ports::LlmError::Unauthorized));
         let agents = activate_default_agents(Arc::new(failing), "mistral");
 
-        let runtime = AgentRuntime::new(BroadcastBus::new(64, 64));
+        let runtime = AgentRuntime::new(BroadcastBus::new(64, 64), BroadcastBus::new(64, 64));
         let outputs = runtime
             .run_cycle(agents, vec![Message::user("x").unwrap()])
             .await;

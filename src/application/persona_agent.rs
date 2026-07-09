@@ -9,7 +9,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 
 use crate::domain::models::{
-    default_personas, AgentId, Message, Persona, ReflectionOutput, ThinkingOutput,
+    default_personas, AgentId, Message, Persona, ReflectionOutput, ShortTermMemory, ThinkingOutput,
 };
 use crate::domain::ports::{CompletionRequest, LlmError, LlmProvider, Role};
 
@@ -20,6 +20,7 @@ pub struct PersonaAgent {
     model: String,
     inbox: Vec<Message>,
     last_thinking: Option<ThinkingOutput>,
+    memory: ShortTermMemory,
 }
 
 impl PersonaAgent {
@@ -31,6 +32,7 @@ impl PersonaAgent {
             model: model.into(),
             inbox: Vec::new(),
             last_thinking: None,
+            memory: ShortTermMemory::new(32),
         }
     }
 
@@ -71,6 +73,9 @@ impl Role for PersonaAgent {
 
     fn observe(&mut self, input: &[Message]) {
         self.inbox.extend_from_slice(input);
+        for msg in input {
+            self.memory.record(msg.clone());
+        }
     }
 
     fn think(&mut self) -> ThinkingOutput {
@@ -126,7 +131,17 @@ impl Role for PersonaAgent {
             }
         }
 
-        // 3. The observed conversation
+        // 3. Memory context (prior cycles)
+        let memory_msgs: Vec<_> = self
+            .memory
+            .messages()
+            .iter()
+            .filter(|m| !self.inbox.contains(m))
+            .cloned()
+            .collect();
+        messages.extend(memory_msgs);
+
+        // 4. The observed conversation (current cycle)
         messages.extend(std::mem::take(&mut self.inbox));
 
         let request = CompletionRequest {
