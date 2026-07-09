@@ -72,7 +72,7 @@ Each feature is described with a standardized card:
 
 ---
 
-### 1.2 `maestro init-config` — Config Bootstrap
+### 1.2 `maestro config` — Provider-Aware Setup
 
 - **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/presentation/cli/mod.rs`, `src/presentation/cli/providers.rs`
@@ -133,12 +133,12 @@ Each feature is described with a standardized card:
 
 ---
 
-### 1.6 `maestro init-config --governance` — Governance Folders
+### 1.6 `maestro config` — Governance Folders
 
 - **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/presentation/cli/mod.rs`, `src/presentation/cli/providers.rs`
 - **Business Value:** 🟢 Low
-- **What It Does Today:** Governance scaffolding is triggered by passing `--governance` to `init-config`, reducing the number of setup steps required.
+- **What It Does Today:** The standalone `scaffold-markdown` command was removed. Governance scaffolding is now triggered automatically by `maestro config`, reducing the number of setup steps required.
 - **What It Should Do:** Auto-populate with contextual starter content. Include example persona and skill definitions. Generate from project type template.
 - **Gap:** Empty folder creation only.
 - **Competitor Benchmark:** No direct equivalent — governance folders are unique to Maestro.

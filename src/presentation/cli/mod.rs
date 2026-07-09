@@ -46,8 +46,8 @@ pub enum Command {
         #[arg(long)]
         json: bool,
     },
-    /// Generate `maestro/config.yml` from a template.
-    InitConfig {
+    /// Set up Maestro: generate config and governance scaffold.
+    Config {
         /// Provider kind: ollama, openai, or gemini.
         #[arg(long)]
         provider: Option<String>,
@@ -57,9 +57,6 @@ pub enum Command {
         /// Override the default model name.
         #[arg(long)]
         model: Option<String>,
-        /// Also create governance folders (scopes, personas, skills).
-        #[arg(long)]
-        governance: bool,
     },
     /// Run readiness checks (config, governance).
     Doctor,
@@ -86,13 +83,12 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Version) => print_line(&format!("maestro {}", env!("CARGO_PKG_VERSION"))),
         Some(Command::ValidateConfig { fix }) => validate_config(&root, fix)?,
         Some(Command::ListAgents { json }) => list_agents_rich(&root, json)?,
-        Some(Command::InitConfig {
+        Some(Command::Config {
             provider,
             endpoint,
             model,
-            governance,
         }) => {
-            let result = providers::init_config_with_provider(&root, provider, endpoint, model, governance)?;
+            let result = providers::init_config_with_provider(&root, provider, endpoint, model)?;
             print_line(&format!("wrote {}", result.path.display()));
             if !result.governance_created.is_empty() {
                 print_line(&format!(
@@ -130,7 +126,7 @@ fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
             let _ = writeln!(out, "2) Launch TUI");
             let _ = writeln!(out, "3) Validate Config");
             let _ = writeln!(out, "4) List Agents");
-            let _ = writeln!(out, "5) Scaffold Governance");
+            let _ = writeln!(out, "5) Config (setup)");
             let _ = writeln!(out, "6) Doctor");
             let _ = writeln!(out, "7) Exit");
             let _ = write!(out, "\nSelect an option [1-7]: ");
@@ -163,7 +159,7 @@ fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
                 break;
             }
             "5" => {
-                let result = providers::init_config_with_provider(&root, None, None, None, true)?;
+                let result = providers::init_config_with_provider(&root, None, None, None)?;
                 print_line(&format!("wrote {}", result.path.display()));
                 if !result.governance_created.is_empty() {
                     print_line(&format!(

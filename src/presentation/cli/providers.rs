@@ -1,8 +1,8 @@
-//! Provider-aware config generation for `maestro init-config`.
+//! Provider-aware config generation for `maestro config`.
 
 use std::path::{Path, PathBuf};
 
-/// Result of an init-config operation.
+/// Result of a config operation.
 pub struct InitConfigResult {
     /// Path to the written configuration file.
     pub path: PathBuf,
@@ -162,7 +162,6 @@ pub fn init_config_with_provider(
     provider: Option<String>,
     endpoint: Option<String>,
     model: Option<String>,
-    governance: bool,
 ) -> anyhow::Result<InitConfigResult> {
     // 1. Resolve which provider to use
     let preset = if let Some(ref p) = provider {
@@ -195,12 +194,8 @@ pub fn init_config_with_provider(
     // 3. Connection test
     let (probe_ok, probe_msg) = run_connection_test(root);
 
-    // 4. Optionally scaffold governance
-    let governance_created = if governance {
-        crate::presentation::cli::scaffold_markdown(root)?
-    } else {
-        Vec::new()
-    };
+    // 4. Scaffold governance
+    let governance_created = crate::presentation::cli::scaffold_markdown(root)?;
 
     Ok(InitConfigResult {
         path,
