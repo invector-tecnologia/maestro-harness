@@ -14,6 +14,8 @@ pub enum RuntimeEvent {
     AgentThinking { agent: AgentId },
     /// The agent is producing output (ACT).
     AgentActing { agent: AgentId },
+    /// The agent reflected on its output (REFLECT phase).
+    AgentReflected { agent: AgentId, satisfied: bool },
     /// The agent finished acting; `produced` indicates whether it emitted a message.
     AgentActed { agent: AgentId, produced: bool },
     /// The agent failed and was isolated (never silently dropped).
@@ -27,6 +29,7 @@ impl RuntimeEvent {
             RuntimeEvent::AgentObserving { agent }
             | RuntimeEvent::AgentThinking { agent }
             | RuntimeEvent::AgentActing { agent }
+            | RuntimeEvent::AgentReflected { agent, .. }
             | RuntimeEvent::AgentActed { agent, .. }
             | RuntimeEvent::AgentFailed { agent, .. } => agent,
         }
@@ -43,6 +46,9 @@ impl RuntimeEvent {
             }
             RuntimeEvent::AgentActing { agent } => {
                 tracing::info!(agent = %agent, phase = "act", "agent acting")
+            }
+            RuntimeEvent::AgentReflected { agent, satisfied } => {
+                tracing::info!(agent = %agent, phase = "reflect", satisfied, "agent reflected")
             }
             RuntimeEvent::AgentActed { agent, produced } => {
                 tracing::info!(agent = %agent, phase = "acted", produced, "agent acted")
@@ -65,6 +71,10 @@ mod tests {
             RuntimeEvent::AgentObserving { agent: id.clone() },
             RuntimeEvent::AgentThinking { agent: id.clone() },
             RuntimeEvent::AgentActing { agent: id.clone() },
+            RuntimeEvent::AgentReflected {
+                agent: id.clone(),
+                satisfied: true,
+            },
             RuntimeEvent::AgentActed {
                 agent: id.clone(),
                 produced: true,

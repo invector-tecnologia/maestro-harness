@@ -51,11 +51,23 @@ impl AgentRuntime {
                 agent.observe(&input);
 
                 emit(&events, RuntimeEvent::AgentThinking { agent: id.clone() }).await;
-                agent.think();
+                let _thinking = agent.think();
 
                 emit(&events, RuntimeEvent::AgentActing { agent: id.clone() }).await;
                 match agent.act().await {
                     Ok(output) => {
+                        // REFLECT phase: self-critique when output was produced
+                        if let Some(ref msg) = output {
+                            let reflection = agent.reflect(msg);
+                            emit(
+                                &events,
+                                RuntimeEvent::AgentReflected {
+                                    agent: id.clone(),
+                                    satisfied: reflection.satisfied,
+                                },
+                            )
+                            .await;
+                        }
                         emit(
                             &events,
                             RuntimeEvent::AgentActed {

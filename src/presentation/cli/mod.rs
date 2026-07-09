@@ -81,7 +81,11 @@ pub enum Command {
         template: Option<String>,
     },
     /// List available project templates.
-    ListTemplates,
+    ListTemplates {
+        /// Output as JSON for CI scripting.
+        #[arg(long)]
+        json: bool,
+    },
 }
 
 /// Dispatch a parsed [`Cli`] invocation.
@@ -114,10 +118,18 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Run { message }) => run_core(message)?,
         Some(Command::Tui) => launch_tui(None)?,
         Some(Command::Init { name, template }) => init_project(name, template, cli.no_tui)?,
-        Some(Command::ListTemplates) => {
-            print_line("Available templates:");
-            for (key, desc) in templates::list() {
-                print_line(&format!("  {key:<12} — {desc}"));
+        Some(Command::ListTemplates { json }) => {
+            if json {
+                let items: Vec<serde_json::Value> = templates::list()
+                    .into_iter()
+                    .map(|(k, d)| serde_json::json!({"key": k, "description": d}))
+                    .collect();
+                print_line(&serde_json::to_string_pretty(&items).unwrap_or_default());
+            } else {
+                print_line("Available templates:");
+                for (key, desc) in templates::list() {
+                    print_line(&format!("  {key:<12} — {desc}"));
+                }
             }
         }
         None => interactive_main_menu(cli.no_tui)?,
@@ -326,11 +338,7 @@ fn list_agents_rich(root: &Path, json: bool) -> anyhow::Result<()> {
     print_line("Handoff Matrix:");
     for row in &rows {
         if !row.handoffs.is_empty() {
-            print_line(&format!(
-                "  {} → {}",
-                row.name,
-                row.handoffs.join(", ")
-            ));
+            print_line(&format!("  {} → {}", row.name, row.handoffs.join(", ")));
         }
     }
 
@@ -381,7 +389,7 @@ fn validate_config(root: &Path, fix: bool) -> anyhow::Result<()> {
     // 1. Load config (without strict validation yet to allow repair)
     let text = std::fs::read_to_string(root.join("maestro/config.yml"))?;
     let mut config: crate::domain::models::config::MaestroConfig = serde_yaml::from_str(&text)?;
-    
+
     // 2. Validate structural integrity
     if let Err(e) = config.validate() {
         if fix {
@@ -398,13 +406,13 @@ fn validate_config(root: &Path, fix: bool) -> anyhow::Result<()> {
             anyhow::bail!(e);
         }
     }
-    
+
     print_line("structural validation: OK");
 
     // 3. Validate remote connectivity via Tokio one-shot runtime
     let registry = crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config)?;
     let rt = tokio::runtime::Runtime::new()?;
-    
+
     for (key, provider_config) in &config.providers {
         let provider = registry.resolve(key);
         let status = rt.block_on(crate::application::readiness::probe_provider(provider));
@@ -413,7 +421,7 @@ fn validate_config(root: &Path, fix: bool) -> anyhow::Result<()> {
             key, provider_config.endpoint, status
         ));
     }
-    
+
     Ok(())
 }
 
@@ -424,19 +432,25 @@ fn doctor(root: &Path) -> anyhow::Result<()> {
     // 1. Toolchain & Environment
     let sys = crate::infrastructure::system::check_system();
     print_line(&format!("[{}] git toolchain", pass_fail(sys.git_available)));
-    print_line(&format!("[{}] nim compiler (for TUI)", pass_fail(sys.nim_available)));
-    
+    print_line(&format!(
+        "[{}] nim compiler (for TUI)",
+        pass_fail(sys.nim_available)
+    ));
+
     if let Some(gpu) = sys.gpu_info {
         print_line(&format!("[{}] local accelerator: {}", pass_fail(true), gpu));
     } else {
-        print_line(&format!("[ ] local accelerator (none detected)"));
+        print_line("[ ] local accelerator (none detected)");
     }
 
     print_line("");
 
     // 2. Configuration & Governance
     let config_res = crate::infrastructure::config::load_from(root);
-    print_line(&format!("[{}] configuration (maestro/config.yml)", pass_fail(config_res.is_ok())));
+    print_line(&format!(
+        "[{}] configuration (maestro/config.yml)",
+        pass_fail(config_res.is_ok())
+    ));
 
     let governance = crate::application::governance::validate_dir(&root.join("maestro"))?;
     let gov_status = if governance.is_valid() {
@@ -444,20 +458,30 @@ fn doctor(root: &Path) -> anyhow::Result<()> {
     } else {
         format!(" (missing: {})", governance.missing.join(", "))
     };
-    print_line(&format!("[{}] governance scaffold{}", pass_fail(governance.is_valid()), gov_status));
+    print_line(&format!(
+        "[{}] governance scaffold{}",
+        pass_fail(governance.is_valid()),
+        gov_status
+    ));
 
     print_line("");
 
     // 3. Provider Connectivity (if config is valid)
     if let Ok(config) = config_res {
-        let registry = crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config)?;
+        let registry =
+            crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config)?;
         let rt = tokio::runtime::Runtime::new()?;
-        
+
         for key in config.providers.keys() {
             let provider = registry.resolve(key);
             let status = rt.block_on(crate::application::readiness::probe_provider(provider));
             let ok = matches!(status, crate::domain::ports::ProviderStatus::Available);
-            print_line(&format!("[{}] provider '{}': {:?}", pass_fail(ok), key, status));
+            print_line(&format!(
+                "[{}] provider '{}': {:?}",
+                pass_fail(ok),
+                key,
+                status
+            ));
         }
     } else {
         print_line("[FAIL] skipping provider probes (config invalid)");
@@ -625,6 +649,25 @@ pub fn scaffold_project(root: &Path, answers: &InitAnswers) -> std::io::Result<V
         let task_path = tasks_dir.join("001_initial_setup.md");
         std::fs::write(&task_path, tmpl.task_spec)?;
         created.push("tasks/001_initial_setup.md".to_string());
+
+        // Write persona hints if provided
+        if !tmpl.persona_hints.is_empty() {
+            let hints_path = root
+                .join("maestro")
+                .join("scopes")
+                .join("_persona_hints.md");
+            std::fs::write(&hints_path, tmpl.persona_hints)?;
+            created.push("scopes/_persona_hints.md".to_string());
+        }
+
+        // Write starter skill if provided
+        if !tmpl.skill_content.is_empty() {
+            let skills_dir = root.join("maestro").join("skills");
+            std::fs::create_dir_all(&skills_dir)?;
+            let skill_path = skills_dir.join(format!("{}.md", tmpl.key));
+            std::fs::write(&skill_path, tmpl.skill_content)?;
+            created.push(format!("skills/{}.md", tmpl.key));
+        }
     } else {
         // Fallback: original minimal scope
         let mut body = format!(

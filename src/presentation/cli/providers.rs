@@ -29,7 +29,10 @@ impl ProviderPreset {
             "ollama" => Ok(Self::Ollama),
             "openai" => Ok(Self::OpenAi),
             "gemini" => Ok(Self::Gemini),
-            _ => Err(format!("unknown provider '{}'. Supported: ollama, openai, gemini", s)),
+            _ => Err(format!(
+                "unknown provider '{}'. Supported: ollama, openai, gemini",
+                s
+            )),
         }
     }
 
@@ -104,7 +107,7 @@ pub fn config_for_provider(
 ) -> String {
     let endpoint = endpoint.unwrap_or(preset.default_endpoint());
     let model = model.unwrap_or(preset.default_model());
-    
+
     match preset {
         ProviderPreset::Ollama => format!(
             r#"system:
@@ -172,10 +175,17 @@ pub fn init_config_with_provider(
         if !detected.is_empty() {
             super::print_line(&format!(
                 "auto-detected: {}",
-                detected.iter().map(|p| p.name()).collect::<Vec<_>>().join(", ")
+                detected
+                    .iter()
+                    .map(|p| p.name())
+                    .collect::<Vec<_>>()
+                    .join(", ")
             ));
         }
-        detected.into_iter().next().unwrap_or(ProviderPreset::Ollama)
+        detected
+            .into_iter()
+            .next()
+            .unwrap_or(ProviderPreset::Ollama)
     };
 
     // 2. Generate and write config
@@ -210,11 +220,11 @@ fn run_connection_test(root: &Path) -> (bool, String) {
         Ok(c) => c,
         Err(e) => return (false, format!("config load failed: {}", e)),
     };
-    let registry = match crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config)
-    {
-        Ok(r) => r,
-        Err(e) => return (false, format!("provider build failed: {}", e)),
-    };
+    let registry =
+        match crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config) {
+            Ok(r) => r,
+            Err(e) => return (false, format!("provider build failed: {}", e)),
+        };
     let provider = registry.default_provider(&config);
 
     // Build a one-shot Tokio runtime for the probe — acceptable at CLI boundary

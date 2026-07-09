@@ -9,8 +9,10 @@ pub mod fsm;
 pub mod governance;
 pub mod message;
 pub mod persona;
+pub mod reflection;
 pub mod rollback;
 pub mod routing;
+pub mod thinking;
 
 pub use agent_id::{AgentId, AgentIdError};
 pub use config::{
@@ -20,5 +22,7 @@ pub use fsm::{can_transition, FsmError, FsmStage, MicroProject};
 pub use governance::{validate_entries, GovernanceReport, REQUIRED_GOVERNANCE_ENTRIES};
 pub use message::{Message, MessageError, MessageRole};
 pub use persona::{default_personas, Persona, PersonaError};
+pub use reflection::ReflectionOutput;
 pub use rollback::{CascadeStep, RollbackPlan};
 pub use routing::{route, PersonaMatch, Routing};
+pub use thinking::ThinkingOutput;

@@ -363,11 +363,19 @@ pub fn run_headless(root: &Path, demand: &str) -> std::io::Result<i32> {
     let mut out = std::io::stdout().lock();
 
     // Boot greeting
-    emit(&mut out, &CoreEvent::ModeChanged { mode: Mode::Maestro })?;
-    emit(&mut out, &CoreEvent::Log {
-        level: "info".to_string(),
-        message: format!("headless demand: {demand}"),
-    })?;
+    emit(
+        &mut out,
+        &CoreEvent::ModeChanged {
+            mode: Mode::Maestro,
+        },
+    )?;
+    emit(
+        &mut out,
+        &CoreEvent::Log {
+            level: "info".to_string(),
+            message: format!("headless demand: {demand}"),
+        },
+    )?;
 
     // Begin orchestration
     let pending = begin_run(root, demand, &mut out)?;
@@ -391,7 +399,11 @@ pub fn run_headless(root: &Path, demand: &str) -> std::io::Result<i32> {
     }
 
     // If still pending somehow, it's an abort
-    if run.session.is_done() { Ok(0) } else { Ok(2) }
+    if run.session.is_done() {
+        Ok(0)
+    } else {
+        Ok(2)
+    }
 }
 
 /// Run the duplex core loop until the input closes or a quit command arrives.

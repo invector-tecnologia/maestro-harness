@@ -180,13 +180,15 @@ Each feature is described with a standardized card:
 
 ### 1.9 Project Templates
 
-- **Status:** 📋 Planned
-- **Source:** Not implemented
+- **Status:** ✅ Implemented
+- **Source:** `src/presentation/cli/templates.rs`, `src/presentation/cli/mod.rs`
 - **Business Value:** 🟡 Medium
-- **What It Does Today:** Nothing.
+- **What It Does Today:** 6 built-in templates (web-app, cli-tool, library, infra, api-service,
+  data-pipeline) with pre-configured scope docs, task specs, persona hints, and starter skills.
+  `maestro list-templates --json` for CI scripting.
 - **What It Should Do:** Library of templates (web app, API service, CLI tool, data pipeline, infra
   module) with pre-configured personas, skills, and scope documents. Community template registry.
-- **Gap:** Full feature gap.
+- **Gap:** No community template registry (future network feature).
 - **Competitor Benchmark:**
   - *MetaGPT*: Built-in project types with full SOP generation
   - *OpenCode*: Custom skill templates and configurations
@@ -200,12 +202,14 @@ Each feature is described with a standardized card:
 - **Status:** ✅ Implemented
 - **Source:** `src/domain/ports/role.rs`, `src/application/persona_agent.rs`
 - **Business Value:** 🔴 Critical
-- **What It Does Today:** `observe() → think() → act()` trait. `PersonaAgent` implements `Role`.
-  `think()` is a no-op placeholder. `act()` calls LLM provider for completion.
+- **What It Does Today:** `observe() → think() → act() → reflect()` trait with structured
+  `ThinkingOutput` and `ReflectionOutput`. `PersonaAgent` injects persona system prompts,
+  produces chain-of-thought reasoning in `think()`, and self-critiques in `reflect()`.
 - **What It Should Do:** `think()` should implement chain-of-thought reasoning, tool selection, and
   plan refinement. Add `reflect()` phase for self-critique. Support streaming responses. Implement
   the full SENSE → OBSERVE → THINK → ACT → AUDIT → DELIVER cycle from the manifesto.
-- **Gap:** `think()` is empty — agents are pure prompt→response pipes, no reasoning.
+- **Gap:** Reasoning is heuristic-based (not LLM-powered). No tool selection in think().
+  No streaming responses yet. Full 6-phase SENSE→…→DELIVER is at orchestrator level only.
 - **Competitor Benchmark:**
   - *Claude Code*: Full ReAct loop with tool use, reflection, and retry
   - *MetaGPT*: Each role has structured thinking with SOP-guided output

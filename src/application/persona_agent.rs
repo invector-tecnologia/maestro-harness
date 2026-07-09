@@ -8,7 +8,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 
-use crate::domain::models::{default_personas, AgentId, Message, Persona};
+use crate::domain::models::{
+    default_personas, AgentId, Message, Persona, ReflectionOutput, ThinkingOutput,
+};
 use crate::domain::ports::{CompletionRequest, LlmError, LlmProvider, Role};
 
 /// A persona bound to a provider and model.
@@ -17,6 +19,7 @@ pub struct PersonaAgent {
     provider: Arc<dyn LlmProvider>,
     model: String,
     inbox: Vec<Message>,
+    last_thinking: Option<ThinkingOutput>,
 }
 
 impl PersonaAgent {
@@ -27,7 +30,32 @@ impl PersonaAgent {
             provider,
             model: model.into(),
             inbox: Vec::new(),
+            last_thinking: None,
         }
+    }
+
+    /// Build the system prompt from the persona's identity.
+    fn system_prompt(&self) -> String {
+        format!(
+            "You are '{}'. Your responsibility: {}\n\n\
+             Follow a structured approach:\n\
+             1. Interpret the task in terms of your specific role.\n\
+             2. Apply your expertise to produce a focused, actionable contribution.\n\
+             3. Flag any risks or concerns within your domain.\n\
+             4. Stay within your responsibility boundary — delegate what is outside it.",
+            self.persona.id, self.persona.responsibility
+        )
+    }
+
+    /// Heuristic: does the demand overlap with this persona's responsibility keywords?
+    fn assess_competence(&self, demand: &str) -> bool {
+        let responsibility_lower = self.persona.responsibility.to_lowercase();
+        let demand_lower = demand.to_lowercase();
+        // Simple word-overlap heuristic
+        responsibility_lower
+            .split_whitespace()
+            .filter(|w| w.len() > 3) // skip articles/prepositions
+            .any(|word| demand_lower.contains(word))
     }
 }
 
@@ -41,22 +69,94 @@ impl Role for PersonaAgent {
         self.inbox.extend_from_slice(input);
     }
 
-    fn think(&mut self) {
-        // Pure phase: no I/O. Working memory is already staged in `inbox`.
+    fn think(&mut self) -> ThinkingOutput {
+        let combined_input: String = self
+            .inbox
+            .iter()
+            .map(|m| m.content.as_str())
+            .collect::<Vec<_>>()
+            .join(" ");
+
+        let within_competence = self.assess_competence(&combined_input);
+
+        let output = ThinkingOutput {
+            task_interpretation: format!(
+                "As {}, I interpret this task through the lens of: {}",
+                self.persona.id, self.persona.responsibility
+            ),
+            approach: format!(
+                "I will apply my expertise in '{}' to produce a focused contribution.",
+                self.persona.responsibility
+            ),
+            risks: if within_competence {
+                Vec::new()
+            } else {
+                vec!["This task may be partially outside my primary responsibility.".to_string()]
+            },
+            within_competence,
+        };
+
+        self.last_thinking = Some(output.clone());
+        output
     }
 
     async fn act(&mut self) -> Result<Option<Message>, LlmError> {
         if self.inbox.is_empty() {
             return Ok(None);
         }
+
+        let mut messages = Vec::new();
+
+        // 1. System prompt (persona identity)
+        if let Ok(sys) = Message::system(self.system_prompt()) {
+            messages.push(sys);
+        }
+
+        // 2. Thinking output as context
+        if let Some(ref thinking) = self.last_thinking {
+            if let Ok(ctx) = Message::system(format!(
+                "[Internal Reasoning]\n{}",
+                thinking.as_prompt_fragment()
+            )) {
+                messages.push(ctx);
+            }
+        }
+
+        // 3. The observed conversation
+        messages.extend(std::mem::take(&mut self.inbox));
+
         let request = CompletionRequest {
             model: self.model.clone(),
-            messages: std::mem::take(&mut self.inbox),
+            messages,
         };
         let response = self.provider.complete(request).await?;
+        self.last_thinking = None;
         let message = Message::assistant(self.persona.id.clone(), response.content)
             .map_err(|e| LlmError::InvalidResponse(e.to_string()))?;
         Ok(Some(message))
+    }
+
+    fn reflect(&self, output: &Message) -> ReflectionOutput {
+        let mut concerns = Vec::new();
+        let mut suggestions = Vec::new();
+
+        // Heuristic 1: Very short responses may lack substance
+        if output.content.len() < 20 {
+            concerns.push("Response is very short — may lack actionable detail.".to_string());
+            suggestions.push("Consider elaborating with specific steps or examples.".to_string());
+        }
+
+        // Heuristic 2: Very long responses may lack focus
+        if output.content.len() > 5000 {
+            concerns.push("Response is very long — may lack focus.".to_string());
+            suggestions.push("Consider condensing to key actionable points.".to_string());
+        }
+
+        ReflectionOutput {
+            satisfied: concerns.is_empty(),
+            concerns,
+            suggestions,
+        }
     }
 }
 

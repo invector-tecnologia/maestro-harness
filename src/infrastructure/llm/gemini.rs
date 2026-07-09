@@ -77,8 +77,9 @@ impl LlmProvider for GeminiProvider {
             return Err(LlmError::Unauthorized);
         }
 
-        let body = build_gemini_body(&request)
-            .map_err(|e| LlmError::InvalidResponse(format!("failed to serialize request: {}", e)))?;
+        let body = build_gemini_body(&request).map_err(|e| {
+            LlmError::InvalidResponse(format!("failed to serialize request: {}", e))
+        })?;
         let resp = self
             .client
             .post(self.generate_url(&request.model))
@@ -167,7 +168,9 @@ struct CandidateContent {
     parts: Vec<Part>,
 }
 
-pub fn build_gemini_body(request: &CompletionRequest) -> Result<serde_json::Value, serde_json::Error> {
+pub fn build_gemini_body(
+    request: &CompletionRequest,
+) -> Result<serde_json::Value, serde_json::Error> {
     let mut system_texts = Vec::new();
     let mut contents = Vec::new();
 

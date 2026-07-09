@@ -48,7 +48,7 @@ fn check_gpu() -> (bool, Option<String>) {
             }
         }
     }
-    
+
     // Attempt Apple Silicon (macOS)
     if cfg!(target_os = "macos") {
         if let Ok(output) = Command::new("sysctl")

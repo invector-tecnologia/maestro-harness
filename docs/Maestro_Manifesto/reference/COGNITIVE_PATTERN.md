@@ -19,17 +19,17 @@ SENSE → OBSERVE → THINK → ACT → AUDIT → DELIVER
 | AUDIT    | Validate the contribution against acceptance criteria.              |
 | DELIVER  | Synthesize and publish the approved result.                         |
 
-The innermost loop is the `Role` trait's `observe → think → act`. `SENSE`,
+The innermost loop is the `Role` trait's `observe → think → act → reflect`. `SENSE`,
 `AUDIT`, and `DELIVER` are orchestration-level stages that wrap that loop when
 agents collaborate.
 
 ## Where It Lives
 
-### Per-agent loop (`OBSERVE → THINK → ACT`)
+### Per-agent loop (`OBSERVE → THINK → ACT → REFLECT`)
 
 - The `Role` trait (`src/domain/ports/`) defines
-  `observe(&[Message]) → think() → act() -> Option<Message>`.
-- `RuntimeEvent::{AgentObserving, AgentThinking, AgentActing, AgentActed}`
+  `observe(&[Message]) → think() -> ThinkingOutput → act() -> Option<Message> → reflect(&Message) -> ReflectionOutput`.
+- `RuntimeEvent::{AgentObserving, AgentThinking, AgentActing, AgentReflected, AgentActed}`
   (`src/application/agent_observability.rs`) narrate each phase for observability.
 
 ### SENSE stage
