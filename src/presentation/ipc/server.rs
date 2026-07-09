@@ -355,6 +355,45 @@ fn handle(
     Ok(false)
 }
 
+/// Run a fully non-interactive headless session for CI/CD.
+///
+/// Sends the demand, auto-approves all gates, streams JSON events to stdout,
+/// and returns an exit code: 0 = success, 1 = error, 2 = aborted.
+pub fn run_headless(root: &Path, demand: &str) -> std::io::Result<i32> {
+    let mut out = std::io::stdout().lock();
+
+    // Boot greeting
+    emit(&mut out, &CoreEvent::ModeChanged { mode: Mode::Maestro })?;
+    emit(&mut out, &CoreEvent::Log {
+        level: "info".to_string(),
+        message: format!("headless demand: {demand}"),
+    })?;
+
+    // Begin orchestration
+    let pending = begin_run(root, demand, &mut out)?;
+    let Some(mut run) = pending else {
+        // No pending gates — unlikely but handle gracefully
+        return Ok(2);
+    };
+
+    // Auto-approve plan gate
+    let finished = resume_run(root, &mut run, true, &mut out)?;
+    if finished {
+        return Ok(0);
+    }
+
+    // Auto-approve execution gate
+    if run.session.is_pending() {
+        let finished = resume_run(root, &mut run, true, &mut out)?;
+        if finished && run.session.is_done() {
+            return Ok(0);
+        }
+    }
+
+    // If still pending somehow, it's an abort
+    if run.session.is_done() { Ok(0) } else { Ok(2) }
+}
+
 /// Run the duplex core loop until the input closes or a quit command arrives.
 pub fn run_core(root: &Path, input: impl BufRead, mut out: impl Write) -> std::io::Result<()> {
     emit(

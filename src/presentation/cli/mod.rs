@@ -33,8 +33,12 @@ pub struct Cli {
 /// Top-level governance commands.
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Print version information.
-    Version,
+    /// Print version and build information.
+    Version {
+        /// Output as JSON for scripting.
+        #[arg(long)]
+        json: bool,
+    },
     ValidateConfig {
         /// Attempt to automatically repair structural errors.
         #[arg(long)]
@@ -61,7 +65,11 @@ pub enum Command {
     /// Run readiness checks (config, governance).
     Doctor,
     /// Run the headless duplex IPC core (reads commands on stdin, writes events on stdout).
-    Run,
+    Run {
+        /// Non-interactive: send a demand, auto-approve, stream JSON events, then exit.
+        #[arg(long)]
+        message: Option<String>,
+    },
     /// Launch the Nim/Tatui Workspace TUI (which spawns the core).
     Tui,
     /// Bootstrap a new project (plain-CLI questionnaire), scaffold defaults, then open the Workspace.
@@ -80,7 +88,7 @@ pub enum Command {
 pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
     match cli.command {
-        Some(Command::Version) => print_line(&format!("maestro {}", env!("CARGO_PKG_VERSION"))),
+        Some(Command::Version { json }) => print_version(&root, json)?,
         Some(Command::ValidateConfig { fix }) => validate_config(&root, fix)?,
         Some(Command::ListAgents { json }) => list_agents_rich(&root, json)?,
         Some(Command::Config {
@@ -103,7 +111,7 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
             ));
         }
         Some(Command::Doctor) => doctor(&root)?,
-        Some(Command::Run) => run_core()?,
+        Some(Command::Run { message }) => run_core(message)?,
         Some(Command::Tui) => launch_tui(None)?,
         Some(Command::Init { name, template }) => init_project(name, template, cli.no_tui)?,
         Some(Command::ListTemplates) => {
@@ -196,6 +204,48 @@ pub fn agent_names() -> Vec<String> {
         .into_iter()
         .map(|p| p.id.to_string())
         .collect()
+}
+
+/// Print rich version information including build metadata and active provider/model.
+fn print_version(root: &Path, json: bool) -> anyhow::Result<()> {
+    let version = env!("CARGO_PKG_VERSION");
+    let commit = env!("MAESTRO_COMMIT");
+    let build_date = env!("MAESTRO_BUILD_DATE");
+    let edition = "2021"; // mirrors Cargo.toml edition
+
+    // Attempt to read provider/model from config
+    let (provider, model) = match crate::infrastructure::config::load_from(root) {
+        Ok(cfg) => (cfg.system.default_provider, cfg.system.default_model),
+        Err(_) => ("(none)".to_string(), "(none)".to_string()),
+    };
+
+    if json {
+        #[derive(serde::Serialize)]
+        struct VersionInfo {
+            version: String,
+            commit: String,
+            build_date: String,
+            edition: String,
+            provider: String,
+            model: String,
+        }
+        let info = VersionInfo {
+            version: version.to_string(),
+            commit: commit.to_string(),
+            build_date: build_date.to_string(),
+            edition: edition.to_string(),
+            provider,
+            model,
+        };
+        print_line(&serde_json::to_string_pretty(&info)?);
+    } else {
+        print_line(&format!("maestro {} ({} {})", version, commit, build_date));
+        print_line(&format!("  edition:  {}", edition));
+        print_line(&format!("  provider: {}", provider));
+        print_line(&format!("  model:    {}", model));
+    }
+
+    Ok(())
 }
 
 /// Print a rich table of personas with bindings resolved from config (if available).
@@ -438,11 +488,16 @@ pub struct InitAnswers {
 }
 
 /// Run the headless duplex IPC core over stdin/stdout, rooted at the current dir.
-fn run_core() -> anyhow::Result<()> {
+fn run_core(message: Option<String>) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
-    let stdin = std::io::stdin();
-    let stdout = std::io::stdout();
-    crate::presentation::ipc::server::run_core(&root, stdin.lock(), stdout.lock())?;
+    if let Some(demand) = message {
+        let code = crate::presentation::ipc::server::run_headless(&root, &demand)?;
+        std::process::exit(code);
+    } else {
+        let stdin = std::io::stdin();
+        let stdout = std::io::stdout();
+        crate::presentation::ipc::server::run_core(&root, stdin.lock(), stdout.lock())?;
+    }
     Ok(())
 }
 
@@ -675,7 +730,7 @@ mod tests {
     fn parses_no_tui_flag() {
         let cli = Cli::parse_from(["maestro", "--no-tui", "version"]);
         assert!(cli.no_tui);
-        assert!(matches!(cli.command, Some(Command::Version)));
+        assert!(matches!(cli.command, Some(Command::Version { .. })));
     }
 
     #[test]

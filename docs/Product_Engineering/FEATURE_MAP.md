@@ -147,13 +147,13 @@ Each feature is described with a standardized card:
 
 ### 1.7 `maestro version` — Version Info
 
-- **Status:** ✅ Implemented
+- **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/presentation/cli/mod.rs`
 - **Business Value:** 🟢 Low
-- **What It Does Today:** Prints version string.
+- **What It Does Today:** Prints version, commit hash, build date, Rust edition, and active provider/model from config. Supports `--json` for CI scripting.
 - **What It Should Do:** Include build metadata (commit hash, build date, toolchain). Opt-in
   update check.
-- **Gap:** Plain version only.
+- **Gap:** No opt-in update check (future work).
 - **Competitor Benchmark:**
   - *Claude Code*: `/version` shows build, model, and API version
   - *Aider*: `--version` includes model info and package versions
@@ -162,14 +162,15 @@ Each feature is described with a standardized card:
 
 ### 1.8 `--no-tui` Headless Mode
 
-- **Status:** ✅ Implemented
+- **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/presentation/cli/mod.rs`, `src/presentation/ipc/server.rs`
 - **Business Value:** 🟠 High
-- **What It Does Today:** Runs core without TUI. Full duplex IPC server over stdin/stdout. Human-
-  readable `tracing` output.
+- **What It Does Today:** Runs core without TUI. Full duplex IPC server over stdin/stdout.
+  `--message` flag for fully non-interactive CI/CD: sends demand, auto-approves gates,
+  streams structured JSON events, exits with code 0/1/2. Human-readable `tracing` on stderr.
 - **What It Should Do:** Structured JSON event stream for CI/CD integration. `--json` output format.
   Machine-readable event stream. Exit codes for pass/fail. JUnit XML test report output.
-- **Gap:** Output is human-readable tracing, not machine-parseable.
+- **Gap:** No JUnit XML test report output (future work).
 - **Competitor Benchmark:**
   - *Claude Code*: `--json` flag for structured output, `--print` for non-interactive
   - *Aider*: `--message` flag for non-interactive, exit codes for CI
