@@ -22,6 +22,10 @@ pub enum RuntimeEvent {
     AgentFailed { agent: AgentId, error: String },
     /// An agent published a message to the inter-agent bus.
     AgentPublished { agent: AgentId },
+    /// An agent sent a directed message to a specific peer.
+    AgentDirectedSend { sender: AgentId, recipient: AgentId },
+    /// An agent wrote to the shared scratchpad.
+    ScratchpadWrite { agent: AgentId, key: String },
     /// An agent's lifecycle status changed.
     AgentLifecycle { agent: AgentId, status: String },
     /// A per-agent metrics snapshot emitted after a cycle.
@@ -47,6 +51,8 @@ impl RuntimeEvent {
             | RuntimeEvent::AgentActed { agent, .. }
             | RuntimeEvent::AgentFailed { agent, .. }
             | RuntimeEvent::AgentPublished { agent, .. }
+            | RuntimeEvent::AgentDirectedSend { sender: agent, .. }
+            | RuntimeEvent::ScratchpadWrite { agent, .. }
             | RuntimeEvent::AgentLifecycle { agent, .. }
             | RuntimeEvent::AgentMetricsSnapshot { agent, .. } => agent,
         }
@@ -75,6 +81,12 @@ impl RuntimeEvent {
             }
             RuntimeEvent::AgentPublished { agent } => {
                 tracing::info!(agent = %agent, phase = "published", "agent published message")
+            }
+            RuntimeEvent::AgentDirectedSend { sender, recipient } => {
+                tracing::info!(agent = %sender, recipient = %recipient, phase = "directed_send", "agent sent directed message")
+            }
+            RuntimeEvent::ScratchpadWrite { agent, key } => {
+                tracing::info!(agent = %agent, key = %key, phase = "scratchpad_write", "agent wrote to scratchpad")
             }
             RuntimeEvent::AgentLifecycle { agent, status } => {
                 tracing::info!(agent = %agent, phase = "lifecycle", status, "agent lifecycle event")
@@ -128,6 +140,14 @@ mod tests {
                 error: "boom".to_string(),
             },
             RuntimeEvent::AgentPublished { agent: id.clone() },
+            RuntimeEvent::AgentDirectedSend {
+                sender: id.clone(),
+                recipient: AgentId::new("Peer").unwrap(),
+            },
+            RuntimeEvent::ScratchpadWrite {
+                agent: id.clone(),
+                key: "notes".to_string(),
+            },
             RuntimeEvent::AgentLifecycle {
                 agent: id.clone(),
                 status: "Running".to_string(),

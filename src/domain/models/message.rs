@@ -39,6 +39,9 @@ pub struct Message {
     /// The agent that authored the message, when applicable.
     #[serde(skip_serializing_if = "Option::is_none", default)]
     pub author: Option<AgentId>,
+    /// If set, this message is addressed to a specific agent.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub recipient: Option<AgentId>,
 }
 
 impl Message {
@@ -56,7 +59,40 @@ impl Message {
             role,
             content,
             author,
+            recipient: None,
         })
+    }
+
+    /// Convenience constructor for a directed agent-to-agent message.
+    pub fn directed(
+        author: AgentId,
+        recipient: AgentId,
+        content: impl Into<String>,
+    ) -> Result<Self, MessageError> {
+        let content = content.into();
+        if content.trim().is_empty() {
+            return Err(MessageError::EmptyContent);
+        }
+        Ok(Self {
+            role: MessageRole::Assistant,
+            content,
+            author: Some(author),
+            recipient: Some(recipient),
+        })
+    }
+
+    /// Whether this message is addressed to a specific agent (or is broadcast).
+    pub fn is_directed(&self) -> bool {
+        self.recipient.is_some()
+    }
+
+    /// Whether this message is relevant to the given agent: either broadcast
+    /// (no recipient), or explicitly addressed to them.
+    pub fn is_visible_to(&self, agent: &AgentId) -> bool {
+        match &self.recipient {
+            None => true,
+            Some(r) => r == agent,
+        }
     }
 
     /// Convenience constructor for a system message.
@@ -106,5 +142,51 @@ mod tests {
         let json = serde_json::to_string(&msg).unwrap();
         let back: Message = serde_json::from_str(&json).unwrap();
         assert_eq!(msg, back);
+    }
+
+    #[test]
+    fn directed_message_carries_recipient() {
+        let sender = AgentId::new("sender").unwrap();
+        let recipient = AgentId::new("recipient").unwrap();
+        let msg = Message::directed(sender.clone(), recipient.clone(), "hello").unwrap();
+
+        assert!(msg.is_directed());
+        assert_eq!(msg.author, Some(sender));
+        assert_eq!(msg.recipient, Some(recipient));
+        assert_eq!(msg.role, MessageRole::Assistant);
+    }
+
+    #[test]
+    fn broadcast_message_visible_to_all() {
+        let msg = Message::user("broadcast").unwrap();
+        let any_agent = AgentId::new("any").unwrap();
+
+        assert!(!msg.is_directed());
+        assert!(msg.is_visible_to(&any_agent));
+    }
+
+    #[test]
+    fn directed_message_not_visible_to_wrong_agent() {
+        let sender = AgentId::new("sender").unwrap();
+        let recipient = AgentId::new("recipient").unwrap();
+        let wrong_agent = AgentId::new("wrong").unwrap();
+
+        let msg = Message::directed(sender, recipient.clone(), "secret").unwrap();
+
+        assert!(msg.is_visible_to(&recipient));
+        assert!(!msg.is_visible_to(&wrong_agent));
+    }
+
+    #[test]
+    fn directed_serde_round_trips() {
+        let sender = AgentId::new("sender").unwrap();
+        let recipient = AgentId::new("recipient").unwrap();
+        let msg = Message::directed(sender, recipient, "secret").unwrap();
+
+        let json = serde_json::to_string(&msg).unwrap();
+        let back: Message = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(msg, back);
+        assert!(back.is_directed());
     }
 }

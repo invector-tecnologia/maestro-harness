@@ -20,7 +20,7 @@ use tokio::task::JoinSet;
 
 use crate::application::agent_metrics::AgentMetrics;
 use crate::application::agent_observability::RuntimeEvent;
-use crate::domain::models::{AgentId, Message};
+use crate::domain::models::{AgentId, Message, Scratchpad};
 use crate::domain::ports::Role;
 use crate::infrastructure::bus::BroadcastBus;
 
@@ -118,7 +118,12 @@ impl AgentRuntime {
 
     /// Run one cognitive cycle across `agents` given shared `input`, returning
     /// every produced message. Ordering is not guaranteed (agents run concurrently).
-    pub async fn run_cycle(&self, agents: Vec<Box<dyn Role>>, input: Vec<Message>) -> Vec<Message> {
+    pub async fn run_cycle(
+        &self,
+        agents: Vec<Box<dyn Role>>,
+        input: Vec<Message>,
+        scratchpad: Option<Arc<RwLock<Scratchpad>>>,
+    ) -> Vec<Message> {
         let mut set: JoinSet<Option<Message>> = JoinSet::new();
 
         for mut agent in agents {
@@ -126,11 +131,26 @@ impl AgentRuntime {
             let agent_bus = self.agent_bus.clone();
             let metrics = self.metrics.clone();
             let input = input.clone();
+            let pad = scratchpad.clone();
             set.spawn(async move {
                 let id = agent.id().clone();
 
                 let history = agent_bus.history().await;
-                let mut enriched_input = history;
+                let visible: Vec<Message> = history
+                    .into_iter()
+                    .filter(|m| m.is_visible_to(&id))
+                    .collect();
+                let mut enriched_input = visible;
+
+                if let Some(ref p) = pad {
+                    let ctx = p.read().await.as_prompt_context();
+                    if !ctx.is_empty() {
+                        if let Ok(ctx_msg) = Message::system(ctx) {
+                            enriched_input.push(ctx_msg);
+                        }
+                    }
+                }
+
                 enriched_input.extend(input);
 
                 emit(&events, RuntimeEvent::AgentObserving { agent: id.clone() }).await;
@@ -153,6 +173,21 @@ impl AgentRuntime {
 
                         // REFLECT phase: self-critique when output was produced
                         if let Some(ref msg) = output {
+                            if msg.is_directed() {
+                                if let (Some(sender), Some(recipient)) =
+                                    (&msg.author, &msg.recipient)
+                                {
+                                    emit(
+                                        &events,
+                                        RuntimeEvent::AgentDirectedSend {
+                                            sender: sender.clone(),
+                                            recipient: recipient.clone(),
+                                        },
+                                    )
+                                    .await;
+                                }
+                            }
+
                             agent_bus.publish(msg.clone()).await;
                             emit(&events, RuntimeEvent::AgentPublished { agent: id.clone() }).await;
 
@@ -274,7 +309,7 @@ mod tests {
         let agents = activate_default_agents(ready_provider(), "mistral");
         let expected = agents.len();
         let outputs = runtime
-            .run_cycle(agents, vec![Message::user("build a script").unwrap()])
+            .run_cycle(agents, vec![Message::user("build a script").unwrap()], None)
             .await;
 
         assert_eq!(outputs.len(), expected);
@@ -297,7 +332,7 @@ mod tests {
 
         let runtime = AgentRuntime::new(BroadcastBus::new(64, 64), BroadcastBus::new(64, 64));
         let outputs = runtime
-            .run_cycle(agents, vec![Message::user("x").unwrap()])
+            .run_cycle(agents, vec![Message::user("x").unwrap()], None)
             .await;
 
         // Every agent failed, but the cycle completed without panicking.

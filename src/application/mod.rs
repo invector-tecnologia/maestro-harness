@@ -9,6 +9,7 @@
 pub mod agent_metrics;
 pub mod agent_observability;
 pub mod agent_runtime;
+pub mod demand_fingerprint;
 pub mod demo_runner;
 pub mod error;
 pub mod governance;
@@ -18,6 +19,7 @@ pub mod persistence;
 pub mod persona_agent;
 pub mod readiness;
 pub mod sops;
+pub mod tool_dispatch;
 pub mod wizard;
 
 pub use agent_metrics::AgentMetrics;

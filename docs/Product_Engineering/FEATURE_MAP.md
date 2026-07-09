@@ -290,14 +290,11 @@ Each feature is described with a standardized card:
 
 ### 2.6 Two-Towers Persona↔Skill Routing
 
-- **Status:** ✅ Implemented
+- **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/domain/models/routing.rs`
 - **Business Value:** 🟠 High
-- **What It Does Today:** Lexical token-overlap scorer. Deterministic ranking with stable sort and
-  tie-breaking by ID. Fallback to Software Engineer. Min score threshold of 1.
-- **What It Should Do:** Embedding-based scoring (local embeddings via Ollama). Hybrid
-  lexical+semantic scoring. Learned routing from historical success data. Confidence-weighted
-  delegation. Routing explanation in narration.
+- **What It Does Today:** Weighted multi-signal lexical scorer (id, responsibility, keywords, skill_tags with configurable weights). Deterministic ranking. Routing explanation in plan narration. tracing-based decision logging with chosen/runner-up/margin.
+- **What It Should Do:** Embedding-based scoring (local embeddings via Ollama). Hybrid lexical+semantic scoring. Learned routing from historical success data. Confidence-weighted delegation.
 - **Gap:** Lexical-only — misses semantic matches. No learning from outcomes.
 - **Competitor Benchmark:**
   - *MetaGPT*: Role selection by SOP-driven task type matching
@@ -311,11 +308,10 @@ Each feature is described with a standardized card:
 - **Status:** ✅ Implemented
 - **Source:** `src/application/model_router.rs`
 - **Business Value:** 🟠 High
-- **What It Does Today:** Config `agents:` map binds persona ID → provider+model. Falls back to
-  system default.
-- **What It Should Do:** Model cascading (try fast model first, escalate on failure). Per-task model
+- **What It Does Today:** Config `agents:` map binds persona ID → provider+model, now supporting an optional `fallback_model` for prioritized cascading. Falls back to system default. Resolution chain is traced and narrated in the plan.
+- **What It Should Do:** Runtime model cascading (try fast model first, escalate on LLM failure during execution). Per-task model
   selection based on complexity estimation. Cost-aware routing.
-- **Gap:** Static binding only. No cascading or cost awareness.
+- **Gap:** Cascading is static config-based rather than runtime execution-based. No complexity estimation or cost awareness.
 - **Competitor Benchmark:**
   - *OpenCode*: Per-session model switching, multi-provider hot-swap
   - *Aider*: Architect mode uses strong model for planning, weaker model for editing
@@ -325,14 +321,12 @@ Each feature is described with a standardized card:
 
 ### 2.8 Agent Memory
 
-- **Status:** 📋 Planned
-- **Source:** Not implemented
+- **Status:** ✅ Implemented (MLP scope)
+- **Source:** `src/domain/models/memory.rs`, `src/domain/ports/session_store.rs`, `src/infrastructure/session_file_store.rs`
 - **Business Value:** 🔴 Critical
-- **What It Does Today:** Nothing — every session starts from zero context.
-- **What It Should Do:** Short-term: sliding window context with summarization. Long-term: vector
-  store (local embeddings) for project knowledge. Cross-session persistence. RAG integration for
-  codebase grounding.
-- **Gap:** Full feature gap. This is the #1 competitive disadvantage.
+- **What It Does Today:** Agents use a sliding window for context. When the window is full, the oldest messages are compressed into a running summary to preserve context. Session transcripts are persisted to `maestro/sessions/<fingerprint>.json` and hydrated on subsequent sessions with the same demand.
+- **What It Should Do:** Add vector store (local embeddings) for cross-project knowledge and full RAG integration for codebase grounding.
+- **Gap:** Missing vector store and cross-project knowledge transfer.
 - **Competitor Benchmark:**
   - *Claude Code*: `CLAUDE.md` managed memory + cross-session project context
   - *OpenCode*: SQLite-backed persistent session history
@@ -343,14 +337,12 @@ Each feature is described with a standardized card:
 
 ### 2.9 Agent Tool Use
 
-- **Status:** 📋 Planned
-- **Source:** Not implemented
+- **Status:** ✅ Implemented (MLP scope)
+- **Source:** `src/domain/models/tool.rs`, `src/domain/ports/tool_registry.rs`, `src/infrastructure/builtin_tools.rs`, `src/application/tool_dispatch.rs`
 - **Business Value:** 🔴 Critical
-- **What It Does Today:** Nothing — agents can only generate text via LLM completion.
-- **What It Should Do:** Tool-use framework: file read/write, shell execution (sandboxed), web
-  search, code analysis (AST parsing), test runner, git operations. Tool approval gates consistent
-  with governance model. MCP (Model Context Protocol) client support.
-- **Gap:** Full feature gap. This is the #2 competitive disadvantage.
+- **What It Does Today:** Agents use a pattern-based tool dispatcher capable of file read/write and shell execution. The tools are explicitly parsed from LLM completion responses and results are injected back into the LLM context. Write/exec tools carry a `requires_approval` flag.
+- **What It Should Do:** Interactive tool approval gates. Sandboxed shell execution. MCP (Model Context Protocol) client support. Git operations, AST parsing, web search.
+- **Gap:** Missing MCP client, interactive approval gates, and sandboxing.
 - **Competitor Benchmark:**
   - *Claude Code*: File editing, shell commands, MCP tools, web search, subagent spawning
   - *OpenCode*: File editing, shell execution, LSP integration, MCP support

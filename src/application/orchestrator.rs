@@ -83,6 +83,8 @@ pub struct Session {
     state: SessionState,
     rollback: RollbackPlan,
     deliverables: Vec<String>,
+    /// Demand fingerprint for session transcript matching.
+    memory_fingerprint: String,
 }
 
 impl Session {
@@ -114,6 +116,15 @@ impl Session {
                 selected.len(),
                 routing.selected.join(", ")
             ),
+            format!("routing: {}", routing.reason),
+            format!(
+                "models: {}",
+                selected
+                    .iter()
+                    .map(|(p, m)| format!("{}→{}", p, m))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            ),
             "delegate in serial cascade".to_string(),
             "audit deliverables".to_string(),
             "deliver".to_string(),
@@ -136,6 +147,7 @@ impl Session {
             state: SessionState::AwaitingPlanApproval,
             rollback: RollbackPlan::new(),
             deliverables: Vec::new(),
+            memory_fingerprint: crate::application::demand_fingerprint::fingerprint(demand),
         };
         (session, signals)
     }
@@ -161,6 +173,11 @@ impl Session {
     /// The originating demand.
     pub fn demand(&self) -> &str {
         &self.demand
+    }
+
+    /// Demand fingerprint for session transcript matching.
+    pub fn memory_fingerprint(&self) -> &str {
+        &self.memory_fingerprint
     }
 
     /// The recorded deliverables (available once execution completes).

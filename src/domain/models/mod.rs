@@ -13,7 +13,9 @@ pub mod persona;
 pub mod reflection;
 pub mod rollback;
 pub mod routing;
+pub mod scratchpad;
 pub mod thinking;
+pub mod tool;
 
 pub use agent_id::{AgentId, AgentIdError};
 pub use config::{
@@ -27,4 +29,6 @@ pub use persona::{default_personas, Persona, PersonaError};
 pub use reflection::ReflectionOutput;
 pub use rollback::{CascadeStep, RollbackPlan};
 pub use routing::{route, PersonaMatch, Routing};
+pub use scratchpad::{Scratchpad, ScratchpadEntry};
 pub use thinking::ThinkingOutput;
+pub use tool::{ToolCall, ToolDefinition, ToolError, ToolKind, ToolResult};

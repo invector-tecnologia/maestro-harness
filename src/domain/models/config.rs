@@ -50,6 +50,9 @@ pub struct AgentBinding {
     pub provider: String,
     /// Model name (must exist under that provider).
     pub model: String,
+    /// Optional fallback model on the same provider.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fallback_model: Option<String>,
 }
 
 /// The full Maestro configuration.
@@ -145,6 +148,15 @@ impl MaestroConfig {
                     model: binding.model.clone(),
                 });
             }
+            if let Some(ref fallback) = binding.fallback_model {
+                if !model_exists(provider, fallback) {
+                    return Err(ConfigError::UnknownAgentModel {
+                        agent: agent.clone(),
+                        provider: binding.provider.clone(),
+                        model: fallback.clone(),
+                    });
+                }
+            }
         }
         Ok(())
     }
@@ -179,7 +191,14 @@ impl MaestroConfig {
                 let model_ok = self
                     .providers
                     .get(&binding.provider)
-                    .map(|p| model_exists(p, &binding.model))
+                    .map(|p| {
+                        let primary_ok = model_exists(p, &binding.model);
+                        let fallback_ok = binding
+                            .fallback_model
+                            .as_ref()
+                            .map_or(true, |f| model_exists(p, f));
+                        primary_ok && fallback_ok
+                    })
                     .unwrap_or(false);
                 !provider_ok || !model_ok
             })
@@ -249,6 +268,7 @@ mod tests {
             AgentBinding {
                 provider: "ollama".to_string(),
                 model: "gpt-4".to_string(),
+                fallback_model: None,
             },
         );
         assert_eq!(
@@ -259,6 +279,48 @@ mod tests {
                 model: "gpt-4".to_string(),
             })
         );
+    }
+
+    #[test]
+    fn unknown_fallback_model_fails_fast() {
+        let mut cfg = base_config();
+        cfg.agents.insert(
+            "Maestro".to_string(),
+            AgentBinding {
+                provider: "ollama".to_string(),
+                model: "mistral".to_string(),
+                fallback_model: Some("gpt-4".to_string()),
+            },
+        );
+        assert_eq!(
+            cfg.validate(),
+            Err(ConfigError::UnknownAgentModel {
+                agent: "Maestro".to_string(),
+                provider: "ollama".to_string(),
+                model: "gpt-4".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn valid_fallback_model_passes() {
+        let mut cfg = base_config();
+        cfg.providers
+            .get_mut("ollama")
+            .unwrap()
+            .models
+            .push(ModelConfig {
+                name: "codellama".to_string(),
+            });
+        cfg.agents.insert(
+            "Maestro".to_string(),
+            AgentBinding {
+                provider: "ollama".to_string(),
+                model: "mistral".to_string(),
+                fallback_model: Some("codellama".to_string()),
+            },
+        );
+        assert!(cfg.validate().is_ok());
     }
 
     #[test]

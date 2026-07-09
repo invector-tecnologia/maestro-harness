@@ -3,8 +3,10 @@
 //! Depends on `domain` only (via trait ports), never on `application` or
 //! `presentation`. Houses provider adapters, the event bus, and the safety harness.
 
+pub mod builtin_tools;
 pub mod bus;
 pub mod config;
 pub mod harness;
 pub mod llm;
+pub mod session_file_store;
 pub mod system;

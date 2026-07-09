@@ -117,7 +117,7 @@ fn begin_run(
     let resolve = |persona: &str| -> String {
         config
             .as_ref()
-            .map(|c| model_for(c, persona))
+            .map(|c| model_for(c, persona).model)
             .unwrap_or_else(|| "default".to_string())
     };
     let (session, signals) = Session::start(demand, &gov::load_personas(root), resolve);
@@ -206,13 +206,34 @@ fn resume_run(
     map_and_emit(&mut run.prev_stage, signals, out)?;
     if run.session.is_done() {
         match persistence::persist_release(root, run.session.demand(), run.session.deliverables()) {
-            Ok(record) => emit(
-                out,
-                &CoreEvent::Log {
-                    level: "info".to_string(),
-                    message: format!("release {} persisted ({})", record.version, record.id),
-                },
-            )?,
+            Ok(record) => {
+                emit(
+                    out,
+                    &CoreEvent::Log {
+                        level: "info".to_string(),
+                        message: format!("release {} persisted ({})", record.version, record.id),
+                    },
+                )?;
+
+                use crate::domain::ports::session_store::{
+                    AgentTranscript, SessionStore, SessionTranscript,
+                };
+                use crate::infrastructure::session_file_store::JsonSessionStore;
+
+                let store = JsonSessionStore::new(root);
+                let transcript = SessionTranscript {
+                    fingerprint: run.session.memory_fingerprint().to_string(),
+                    demand: run.session.demand().to_string(),
+                    transcripts: vec![AgentTranscript {
+                        agent_id: "shared".to_string(),
+                        messages: Vec::new(),
+                        summary: None,
+                    }],
+                };
+                if let Err(e) = store.save(&transcript) {
+                    warn(out, format!("failed to persist session transcript: {e}"))?;
+                }
+            }
             Err(e) => warn(out, format!("persistence failed: {e}"))?,
         }
         Ok(true)

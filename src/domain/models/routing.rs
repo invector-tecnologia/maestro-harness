@@ -13,6 +13,12 @@ use super::persona::Persona;
 /// Minimum lexical overlap for a confident match.
 pub const MIN_SCORE: u32 = 1;
 
+/// Scoring weights per signal source.
+pub const WEIGHT_ID: u32 = 1;
+pub const WEIGHT_RESPONSIBILITY: u32 = 1;
+pub const WEIGHT_KEYWORDS: u32 = 2;
+pub const WEIGHT_SKILL_TAGS: u32 = 2;
+
 /// The default persona selected when nothing clears [`MIN_SCORE`].
 pub const FALLBACK_PERSONA: &str = "Software Engineer";
 
@@ -34,6 +40,8 @@ pub struct Routing {
     pub selected: Vec<String>,
     /// Whether the fallback was applied because nothing cleared the threshold.
     pub used_fallback: bool,
+    /// Human-readable routing explanation.
+    pub reason: String,
 }
 
 /// Lowercased alphanumeric tokens of length > 2.
@@ -45,14 +53,35 @@ fn tokens(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// Lexical overlap between the demand tokens and a persona's id + responsibility.
+/// Weighted lexical overlap between demand tokens and persona signals.
 fn score(demand_tokens: &[String], persona: &Persona) -> u32 {
-    let mut haystack = tokens(&persona.id.to_string());
-    haystack.extend(tokens(&persona.responsibility));
-    for kw in &persona.expertise_keywords {
-        haystack.extend(tokens(kw));
-    }
-    demand_tokens
+    let id_tokens = tokens(&persona.id.to_string());
+    let resp_tokens = tokens(&persona.responsibility);
+    let kw_tokens: Vec<String> = persona
+        .expertise_keywords
+        .iter()
+        .flat_map(|kw| tokens(kw))
+        .collect();
+    let tag_tokens: Vec<String> = persona
+        .skill_tags
+        .iter()
+        .flat_map(|tag| tokens(tag))
+        .collect();
+
+    let id_hits = count_hits(demand_tokens, &id_tokens);
+    let resp_hits = count_hits(demand_tokens, &resp_tokens);
+    let kw_hits = count_hits(demand_tokens, &kw_tokens);
+    let tag_hits = count_hits(demand_tokens, &tag_tokens);
+
+    id_hits * WEIGHT_ID
+        + resp_hits * WEIGHT_RESPONSIBILITY
+        + kw_hits * WEIGHT_KEYWORDS
+        + tag_hits * WEIGHT_SKILL_TAGS
+}
+
+/// Count how many demand tokens appear in the haystack.
+fn count_hits(demand: &[String], haystack: &[String]) -> u32 {
+    demand
         .iter()
         .filter(|t| haystack.iter().any(|h| h == *t))
         .count() as u32
@@ -83,23 +112,58 @@ pub fn route(demand: &str, personas: &[Persona]) -> Routing {
         .map(|m| m.persona.clone())
         .collect();
 
-    if winners.is_empty() {
+    let (selected, used_fallback) = if winners.is_empty() {
         let fallback = ranked
             .iter()
             .find(|m| m.persona == FALLBACK_PERSONA)
             .or_else(|| ranked.first())
             .map(|m| m.persona.clone());
-        Routing {
-            ranked,
-            selected: fallback.into_iter().collect(),
-            used_fallback: true,
-        }
+        (fallback.into_iter().collect(), true)
     } else {
-        Routing {
-            ranked,
-            selected: winners,
-            used_fallback: false,
+        (winners, false)
+    };
+
+    let reason = if used_fallback {
+        format!(
+            "No persona cleared threshold ({}); fell back to {}",
+            MIN_SCORE, FALLBACK_PERSONA
+        )
+    } else {
+        let top = &ranked[0];
+        let runner_up = ranked.get(1);
+        match runner_up {
+            Some(ru) => format!(
+                "Selected '{}' (score {}) over '{}' (score {}), margin {}",
+                top.persona,
+                top.score,
+                ru.persona,
+                ru.score,
+                top.score.saturating_sub(ru.score)
+            ),
+            None => format!(
+                "Selected '{}' (score {}, sole candidate)",
+                top.persona, top.score
+            ),
         }
+    };
+
+    if let Some(top) = ranked.first() {
+        tracing::info!(
+            selected = %top.persona,
+            score = top.score,
+            runner_up = ranked.get(1).map(|r| r.persona.as_str()).unwrap_or("none"),
+            runner_up_score = ranked.get(1).map(|r| r.score).unwrap_or(0),
+            margin = top.score.saturating_sub(ranked.get(1).map(|r| r.score).unwrap_or(0)),
+            used_fallback,
+            "two-towers routing decision"
+        );
+    }
+
+    Routing {
+        ranked,
+        selected,
+        used_fallback,
+        reason,
     }
 }
 
@@ -160,5 +224,53 @@ mod tests {
         let routing = route("deploy the container", &personas);
         assert!(routing.selected.iter().any(|p| p == "DevOps Engineer"));
         assert!(!routing.used_fallback);
+    }
+
+    #[test]
+    fn weighted_keywords_beat_id_match() {
+        let personas = default_personas();
+        // "security" is in ID for Security Analyst (weight 1), but "coding" is a skill_tag for Software Engineer (weight 2).
+        let routing = route("coding", &personas);
+        assert_eq!(routing.selected, vec!["Software Engineer"]);
+        let score = routing
+            .ranked
+            .iter()
+            .find(|m| m.persona == "Software Engineer")
+            .unwrap()
+            .score;
+        assert_eq!(score, WEIGHT_SKILL_TAGS);
+    }
+
+    #[test]
+    fn skill_tags_contribute_to_score() {
+        let personas = default_personas();
+        // "infra" is a skill tag for DevOps Engineer.
+        let routing = route("infra", &personas);
+        assert!(routing.selected.iter().any(|p| p == "DevOps Engineer"));
+        let score = routing
+            .ranked
+            .iter()
+            .find(|m| m.persona == "DevOps Engineer")
+            .unwrap()
+            .score;
+        // DevOps has "infra" in both keywords (weight 2) and skill tags (weight 2), total 4
+        assert_eq!(score, WEIGHT_KEYWORDS + WEIGHT_SKILL_TAGS);
+    }
+
+    #[test]
+    fn reason_explains_selection() {
+        let personas = default_personas();
+        let routing = route("improve quality assurance and testing", &personas);
+        assert!(routing.reason.contains("Selected 'Quality Assurance'"));
+        assert!(routing.reason.contains("score"));
+        assert!(routing.reason.contains("margin"));
+    }
+
+    #[test]
+    fn reason_explains_fallback() {
+        let personas = default_personas();
+        let routing = route("zzz qqq vvv", &personas);
+        assert!(routing.reason.contains("No persona cleared threshold"));
+        assert!(routing.reason.contains("fell back to Software Engineer"));
     }
 }
