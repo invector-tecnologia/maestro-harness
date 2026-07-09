@@ -18,9 +18,9 @@ use crate::domain::models::default_personas;
     about = "Maestro — tactical agentic orchestrator"
 )]
 pub struct Cli {
-    /// Launch the interactive Nim/Tatui TUI.
+    /// Run headless, without launching the Nim/Tatui TUI.
     #[arg(long, global = true)]
-    pub tui: bool,
+    pub no_tui: bool,
 
     #[command(subcommand)]
     pub command: Option<Command>,
@@ -55,26 +55,89 @@ pub enum Command {
 /// Dispatch a parsed [`Cli`] invocation.
 pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
-    match cli.command.unwrap_or(Command::Version) {
-        Command::Version => print_line(&format!("maestro {}", env!("CARGO_PKG_VERSION"))),
-        Command::ValidateConfig => validate_config(&root)?,
-        Command::ListAgents => {
+    match cli.command {
+        Some(Command::Version) => print_line(&format!("maestro {}", env!("CARGO_PKG_VERSION"))),
+        Some(Command::ValidateConfig) => validate_config(&root)?,
+        Some(Command::ListAgents) => {
             for name in agent_names() {
                 print_line(&name);
             }
         }
-        Command::ScaffoldMarkdown => {
+        Some(Command::ScaffoldMarkdown) => {
             let created = scaffold_markdown(&root)?;
             print_line(&format!("scaffolded governance: {}", created.join(", ")));
         }
-        Command::InitConfig => {
+        Some(Command::InitConfig) => {
             let path = init_config(&root)?;
             print_line(&format!("wrote {}", path.display()));
         }
-        Command::Doctor => doctor(&root)?,
-        Command::Run => run_core()?,
-        Command::Tui => launch_tui(None)?,
-        Command::Init { name } => init_project(name, cli.tui)?,
+        Some(Command::Doctor) => doctor(&root)?,
+        Some(Command::Run) => run_core()?,
+        Some(Command::Tui) => launch_tui(None)?,
+        Some(Command::Init { name }) => init_project(name, cli.no_tui)?,
+        None => interactive_main_menu(cli.no_tui)?,
+    }
+    Ok(())
+}
+
+fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
+    let mut out = std::io::stdout().lock();
+    let mut input = std::io::stdin().lock();
+    
+    loop {
+        let _ = writeln!(out, "\nMaestro Interactive CLI");
+        let _ = writeln!(out, "1) Init new project");
+        let _ = writeln!(out, "2) Launch TUI");
+        let _ = writeln!(out, "3) Validate Config");
+        let _ = writeln!(out, "4) List Agents");
+        let _ = writeln!(out, "5) Scaffold Governance");
+        let _ = writeln!(out, "6) Doctor");
+        let _ = writeln!(out, "7) Exit");
+        let _ = write!(out, "\nSelect an option [1-7]: ");
+        let _ = out.flush();
+        
+        let mut line = String::new();
+        use std::io::BufRead;
+        input.read_line(&mut line)?;
+        let choice = line.trim();
+        
+        let root = std::env::current_dir()?;
+        
+        match choice {
+            "1" => {
+                init_project(None, no_tui)?;
+                break;
+            }
+            "2" => {
+                launch_tui(None)?;
+                break;
+            }
+            "3" => {
+                validate_config(&root)?;
+                break;
+            }
+            "4" => {
+                for name in agent_names() {
+                    print_line(&name);
+                }
+                break;
+            }
+            "5" => {
+                let created = scaffold_markdown(&root)?;
+                print_line(&format!("scaffolded governance: {}", created.join(", ")));
+                break;
+            }
+            "6" => {
+                doctor(&root)?;
+                break;
+            }
+            "7" | "q" | "exit" | "" => {
+                break;
+            }
+            _ => {
+                let _ = writeln!(out, "Invalid option, try again.");
+            }
+        }
     }
     Ok(())
 }
@@ -321,7 +384,7 @@ pub fn scaffold_project(root: &Path, answers: &InitAnswers) -> std::io::Result<V
 }
 
 /// Interactive bootstrap: collect answers, scaffold, then open the Workspace if requested.
-fn init_project(name: Option<String>, tui: bool) -> anyhow::Result<()> {
+fn init_project(name: Option<String>, no_tui: bool) -> anyhow::Result<()> {
     let base = std::env::current_dir()?;
     let stdin = std::io::stdin();
     let answers = prompt_answers(stdin.lock(), std::io::stdout(), name)?;
@@ -336,7 +399,7 @@ fn init_project(name: Option<String>, tui: bool) -> anyhow::Result<()> {
         target_dir.display(),
         created.join(", ")
     ));
-    if tui {
+    if !no_tui {
         print_line("opening Workspace (Maestro Mode)\u{2026}");
         if let Err(e) = launch_tui(Some(&target_dir)) {
             print_line(&format!("(TUI not launched: {e})"));
@@ -357,16 +420,16 @@ mod tests {
     use clap::Parser;
 
     #[test]
-    fn parses_tui_flag() {
-        let cli = Cli::parse_from(["maestro", "--tui", "version"]);
-        assert!(cli.tui);
+    fn parses_no_tui_flag() {
+        let cli = Cli::parse_from(["maestro", "--no-tui", "version"]);
+        assert!(cli.no_tui);
         assert!(matches!(cli.command, Some(Command::Version)));
     }
 
     #[test]
     fn defaults_to_no_subcommand() {
         let cli = Cli::parse_from(["maestro"]);
-        assert!(!cli.tui);
+        assert!(!cli.no_tui);
         assert!(cli.command.is_none());
     }
 
