@@ -8,7 +8,7 @@ use std::time::Duration;
 
 use crate::domain::models::MessageRole;
 use crate::domain::ports::{
-    CompletionRequest, CompletionResponse, LlmError, LlmProvider, ProviderStatus,
+    CompletionRequest, CompletionResponse, LlmError, LlmProvider, ProviderStatus, TokenUsage,
 };
 
 /// A Gemini API provider.
@@ -106,7 +106,9 @@ impl LlmProvider for GeminiProvider {
                         )
                     })?;
 
-                Ok(CompletionResponse { content })
+                let usage = value.usage_metadata.as_ref().and_then(parse_gemini_usage);
+
+                Ok(CompletionResponse { content, usage })
             }
             401 | 403 => Err(LlmError::Unauthorized),
             404 => Err(LlmError::ModelMissing(request.model)),
@@ -117,6 +119,13 @@ impl LlmProvider for GeminiProvider {
 
 pub fn normalize_base(endpoint: &str) -> String {
     endpoint.trim().trim_end_matches('/').to_string()
+}
+
+fn parse_gemini_usage(meta: &UsageMetadata) -> Option<TokenUsage> {
+    Some(TokenUsage {
+        prompt_tokens: meta.prompt_token_count,
+        completion_tokens: meta.candidates_token_count,
+    })
 }
 
 pub fn status_from_code(code: u16) -> ProviderStatus {
@@ -155,6 +164,16 @@ struct Part {
 struct GeminiResponse {
     #[serde(default)]
     candidates: Vec<Candidate>,
+    #[serde(rename = "usageMetadata")]
+    usage_metadata: Option<UsageMetadata>,
+}
+
+#[derive(Deserialize)]
+struct UsageMetadata {
+    #[serde(rename = "promptTokenCount", default)]
+    prompt_token_count: u64,
+    #[serde(rename = "candidatesTokenCount", default)]
+    candidates_token_count: u64,
 }
 
 #[derive(Deserialize)]
@@ -265,5 +284,16 @@ mod tests {
         assert_eq!(body["contents"][0]["parts"][0]["text"], "hi");
         assert_eq!(body["contents"][1]["role"], "model");
         assert_eq!(body["contents"][1]["parts"][0]["text"], "hello");
+    }
+
+    #[test]
+    fn parses_usage_when_present() {
+        let meta = UsageMetadata {
+            prompt_token_count: 50,
+            candidates_token_count: 30,
+        };
+        let usage = parse_gemini_usage(&meta).unwrap();
+        assert_eq!(usage.prompt_tokens, 50);
+        assert_eq!(usage.completion_tokens, 30);
     }
 }

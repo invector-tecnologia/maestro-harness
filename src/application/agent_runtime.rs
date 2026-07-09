@@ -18,6 +18,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinSet;
 
+use crate::application::agent_metrics::AgentMetrics;
 use crate::application::agent_observability::RuntimeEvent;
 use crate::domain::models::{AgentId, Message};
 use crate::domain::ports::Role;
@@ -42,6 +43,7 @@ pub struct AgentRuntime {
     events: BroadcastBus<RuntimeEvent>,
     agent_bus: BroadcastBus<Message>,
     registry: Arc<RwLock<HashMap<AgentId, AgentEntry>>>,
+    metrics: Arc<RwLock<AgentMetrics>>,
 }
 
 impl AgentRuntime {
@@ -51,6 +53,7 @@ impl AgentRuntime {
             events,
             agent_bus,
             registry: Arc::new(RwLock::new(HashMap::new())),
+            metrics: Arc::new(RwLock::new(AgentMetrics::new())),
         }
     }
 
@@ -103,6 +106,11 @@ impl AgentRuntime {
             .collect()
     }
 
+    /// Snapshot current metrics.
+    pub async fn metrics(&self) -> AgentMetrics {
+        self.metrics.read().await.clone()
+    }
+
     /// The narration bus (subscribe to render agent activity).
     pub fn events(&self) -> &BroadcastBus<RuntimeEvent> {
         &self.events
@@ -116,6 +124,7 @@ impl AgentRuntime {
         for mut agent in agents {
             let events = self.events.clone();
             let agent_bus = self.agent_bus.clone();
+            let metrics = self.metrics.clone();
             let input = input.clone();
             set.spawn(async move {
                 let id = agent.id().clone();
@@ -131,8 +140,17 @@ impl AgentRuntime {
                 let _thinking = agent.think();
 
                 emit(&events, RuntimeEvent::AgentActing { agent: id.clone() }).await;
+                let act_start = std::time::Instant::now();
                 match agent.act().await {
                     Ok(output) => {
+                        let latency = act_start.elapsed();
+                        let usage = agent.last_usage();
+
+                        let mut metrics_guard = metrics.write().await;
+                        metrics_guard.record_cycle(&id, true, usage, latency);
+                        let stats = metrics_guard.stats(&id).unwrap().clone();
+                        drop(metrics_guard);
+
                         // REFLECT phase: self-critique when output was produced
                         if let Some(ref msg) = output {
                             agent_bus.publish(msg.clone()).await;
@@ -151,22 +169,59 @@ impl AgentRuntime {
                         emit(
                             &events,
                             RuntimeEvent::AgentActed {
-                                agent: id,
+                                agent: id.clone(),
                                 produced: output.is_some(),
                             },
                         )
                         .await;
+
+                        emit(
+                            &events,
+                            RuntimeEvent::AgentMetricsSnapshot {
+                                agent: id,
+                                cycles: stats.cycles,
+                                successes: stats.successes,
+                                failures: stats.failures,
+                                prompt_tokens: stats.prompt_tokens,
+                                completion_tokens: stats.completion_tokens,
+                                latency_ms: stats.total_latency.as_millis() as u64,
+                            },
+                        )
+                        .await;
+
                         output
                     }
                     Err(error) => {
+                        let latency = act_start.elapsed();
+
+                        let mut metrics_guard = metrics.write().await;
+                        metrics_guard.record_cycle(&id, false, None, latency);
+                        let stats = metrics_guard.stats(&id).unwrap().clone();
+                        drop(metrics_guard);
+
                         emit(
                             &events,
                             RuntimeEvent::AgentFailed {
-                                agent: id,
+                                agent: id.clone(),
                                 error: error.to_string(),
                             },
                         )
                         .await;
+
+                        emit(
+                            &events,
+                            RuntimeEvent::AgentMetricsSnapshot {
+                                agent: id,
+                                cycles: stats.cycles,
+                                successes: stats.successes,
+                                failures: stats.failures,
+                                prompt_tokens: stats.prompt_tokens,
+                                completion_tokens: stats.completion_tokens,
+                                latency_ms: stats.total_latency.as_millis() as u64,
+                            },
+                        )
+                        .await;
+
                         None
                     }
                 }
@@ -205,6 +260,7 @@ mod tests {
         mock.expect_complete().returning(|_req| {
             Ok(CompletionResponse {
                 content: "done".to_string(),
+                usage: None,
             })
         });
         Arc::new(mock)

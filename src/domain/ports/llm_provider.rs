@@ -39,6 +39,18 @@ pub struct CompletionRequest {
 pub struct CompletionResponse {
     /// The generated text.
     pub content: String,
+    /// Token usage reported by the provider, if available.
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub usage: Option<TokenUsage>,
+}
+
+/// Token counts reported by a provider for a single completion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TokenUsage {
+    /// Tokens consumed by the prompt/context.
+    pub prompt_tokens: u64,
+    /// Tokens generated in the completion.
+    pub completion_tokens: u64,
 }
 
 /// Errors surfaced by a provider adapter. Adapters map transport/HTTP failures
@@ -84,6 +96,7 @@ mod tests {
         mock.expect_complete().returning(|_req| {
             Ok(CompletionResponse {
                 content: "ok".to_string(),
+                usage: None,
             })
         });
 

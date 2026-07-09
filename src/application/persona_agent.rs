@@ -11,7 +11,7 @@ use async_trait::async_trait;
 use crate::domain::models::{
     default_personas, AgentId, Message, Persona, ReflectionOutput, ShortTermMemory, ThinkingOutput,
 };
-use crate::domain::ports::{CompletionRequest, LlmError, LlmProvider, Role};
+use crate::domain::ports::{CompletionRequest, LlmError, LlmProvider, Role, TokenUsage};
 
 /// A persona bound to a provider and model.
 pub struct PersonaAgent {
@@ -20,6 +20,7 @@ pub struct PersonaAgent {
     model: String,
     inbox: Vec<Message>,
     last_thinking: Option<ThinkingOutput>,
+    last_usage: Option<TokenUsage>,
     memory: ShortTermMemory,
 }
 
@@ -32,6 +33,7 @@ impl PersonaAgent {
             model: model.into(),
             inbox: Vec::new(),
             last_thinking: None,
+            last_usage: None,
             memory: ShortTermMemory::new(32),
         }
     }
@@ -149,6 +151,7 @@ impl Role for PersonaAgent {
             messages,
         };
         let response = self.provider.complete(request).await?;
+        self.last_usage = response.usage;
         self.last_thinking = None;
         let message = Message::assistant(self.persona.id.clone(), response.content)
             .map_err(|e| LlmError::InvalidResponse(e.to_string()))?;
@@ -177,6 +180,10 @@ impl Role for PersonaAgent {
             suggestions,
         }
     }
+
+    fn last_usage(&self) -> Option<TokenUsage> {
+        self.last_usage
+    }
 }
 
 /// Bring the four operational personas online, bound to `provider`/`model`.
@@ -203,6 +210,7 @@ mod tests {
         mock.expect_complete().returning(|_r| {
             Ok(CompletionResponse {
                 content: "ok".to_string(),
+                usage: None,
             })
         });
         Arc::new(mock)

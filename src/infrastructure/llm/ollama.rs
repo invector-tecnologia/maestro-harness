@@ -11,7 +11,7 @@ use async_trait::async_trait;
 
 use crate::domain::models::{Message, MessageRole};
 use crate::domain::ports::{
-    CompletionRequest, CompletionResponse, LlmError, LlmProvider, ProviderStatus,
+    CompletionRequest, CompletionResponse, LlmError, LlmProvider, ProviderStatus, TokenUsage,
 };
 
 /// An Ollama-backed provider.
@@ -75,8 +75,10 @@ impl LlmProvider for OllamaProvider {
                     .get("response")
                     .and_then(|r| r.as_str())
                     .ok_or_else(|| LlmError::InvalidResponse("missing 'response' field".into()))?;
+                let usage = parse_ollama_usage(&value);
                 Ok(CompletionResponse {
                     content: content.to_string(),
+                    usage,
                 })
             }
             401 | 403 => Err(LlmError::Unauthorized),
@@ -92,6 +94,16 @@ pub fn normalize_endpoint(endpoint: &str) -> String {
     let trimmed = endpoint.trim().trim_end_matches('/');
     let without_v1 = trimmed.strip_suffix("/v1").unwrap_or(trimmed);
     without_v1.trim_end_matches('/').to_string()
+}
+
+/// Parse the token usage from an Ollama JSON response.
+fn parse_ollama_usage(value: &serde_json::Value) -> Option<TokenUsage> {
+    let prompt = value.get("prompt_eval_count")?.as_u64()?;
+    let completion = value.get("eval_count")?.as_u64()?;
+    Some(TokenUsage {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+    })
 }
 
 /// Map an HTTP status code from the tags probe to a [`ProviderStatus`].
@@ -158,5 +170,25 @@ mod tests {
             Message::user("hi").unwrap(),
         ];
         assert_eq!(render_prompt(&msgs), "system: be brief\nuser: hi");
+    }
+
+    #[test]
+    fn parses_usage_when_present() {
+        let json = serde_json::json!({
+            "response": "ok",
+            "prompt_eval_count": 10,
+            "eval_count": 20
+        });
+        let usage = parse_ollama_usage(&json).unwrap();
+        assert_eq!(usage.prompt_tokens, 10);
+        assert_eq!(usage.completion_tokens, 20);
+    }
+
+    #[test]
+    fn missing_usage_returns_none() {
+        let json = serde_json::json!({
+            "response": "ok"
+        });
+        assert!(parse_ollama_usage(&json).is_none());
     }
 }

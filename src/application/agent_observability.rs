@@ -24,6 +24,16 @@ pub enum RuntimeEvent {
     AgentPublished { agent: AgentId },
     /// An agent's lifecycle status changed.
     AgentLifecycle { agent: AgentId, status: String },
+    /// A per-agent metrics snapshot emitted after a cycle.
+    AgentMetricsSnapshot {
+        agent: AgentId,
+        cycles: u64,
+        successes: u64,
+        failures: u64,
+        prompt_tokens: u64,
+        completion_tokens: u64,
+        latency_ms: u64,
+    },
 }
 
 impl RuntimeEvent {
@@ -37,7 +47,8 @@ impl RuntimeEvent {
             | RuntimeEvent::AgentActed { agent, .. }
             | RuntimeEvent::AgentFailed { agent, .. }
             | RuntimeEvent::AgentPublished { agent, .. }
-            | RuntimeEvent::AgentLifecycle { agent, .. } => agent,
+            | RuntimeEvent::AgentLifecycle { agent, .. }
+            | RuntimeEvent::AgentMetricsSnapshot { agent, .. } => agent,
         }
     }
 
@@ -67,6 +78,27 @@ impl RuntimeEvent {
             }
             RuntimeEvent::AgentLifecycle { agent, status } => {
                 tracing::info!(agent = %agent, phase = "lifecycle", status, "agent lifecycle event")
+            }
+            RuntimeEvent::AgentMetricsSnapshot {
+                agent,
+                cycles,
+                successes,
+                failures,
+                prompt_tokens,
+                completion_tokens,
+                latency_ms,
+            } => {
+                tracing::info!(
+                    agent = %agent,
+                    phase = "metrics",
+                    cycles,
+                    successes,
+                    failures,
+                    prompt_tokens,
+                    completion_tokens,
+                    latency_ms,
+                    "agent metrics snapshot"
+                )
             }
         }
     }
@@ -99,6 +131,15 @@ mod tests {
             RuntimeEvent::AgentLifecycle {
                 agent: id.clone(),
                 status: "Running".to_string(),
+            },
+            RuntimeEvent::AgentMetricsSnapshot {
+                agent: id.clone(),
+                cycles: 1,
+                successes: 1,
+                failures: 0,
+                prompt_tokens: 10,
+                completion_tokens: 20,
+                latency_ms: 100,
             },
         ];
         for event in events {

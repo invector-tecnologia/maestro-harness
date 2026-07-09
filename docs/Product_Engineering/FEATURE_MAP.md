@@ -276,13 +276,11 @@ Each feature is described with a standardized card:
 ### 2.5 Agent Observability
 
 - **Status:** ✅ Implemented
-- **Source:** `src/application/agent_observability.rs`
+- **Source:** `src/application/agent_observability.rs`, `src/application/agent_metrics.rs`
 - **Business Value:** 🟡 Medium
-- **What It Does Today:** `RuntimeEvent` with 5 variants (Observing, Thinking, Acting, Acted,
-  Failed) emitted via structured `tracing`.
-- **What It Should Do:** Real-time dashboard in TUI. Token usage per agent per cycle. Cost
-  estimation. Performance metrics (latency, success rate). Exportable audit logs.
-- **Gap:** Events are emitted to tracing only — no aggregation, no dashboard, no cost tracking.
+- **What It Does Today:** `RuntimeEvent` with snapshot emitting tokens and latency. `AgentMetrics` aggregates token usage and success rates per cycle and per session.
+- **What It Should Do:** Real-time dashboard in TUI. Cost estimation. Exportable audit logs.
+- **Gap:** Dashboard and cost tracking are missing.
 - **Competitor Benchmark:**
   - *Claude Code*: `/usage` and `/cost` commands, per-session token tracking
   - *Maestri*: On-device Ombro AI summarizes agent activity while you're away

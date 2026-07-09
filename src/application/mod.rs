@@ -6,6 +6,7 @@
 //! Populated by later tasks: `agent_runtime` (TASK 010), `agent_observability`
 //! (TASK 004), `readiness` (TASK 010), and the FSM engine (TASK 046).
 
+pub mod agent_metrics;
 pub mod agent_observability;
 pub mod agent_runtime;
 pub mod demo_runner;
@@ -19,6 +20,7 @@ pub mod readiness;
 pub mod sops;
 pub mod wizard;
 
+pub use agent_metrics::AgentMetrics;
 pub use agent_observability::RuntimeEvent;
 pub use agent_runtime::AgentRuntime;
 pub use error::RuntimeError;

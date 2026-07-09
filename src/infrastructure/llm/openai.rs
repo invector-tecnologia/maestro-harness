@@ -11,7 +11,7 @@ use async_trait::async_trait;
 
 use crate::domain::models::MessageRole;
 use crate::domain::ports::{
-    CompletionRequest, CompletionResponse, LlmError, LlmProvider, ProviderStatus,
+    CompletionRequest, CompletionResponse, LlmError, LlmProvider, ProviderStatus, TokenUsage,
 };
 
 /// An OpenAI-compatible provider (OpenAI and API-compatible gateways).
@@ -92,8 +92,10 @@ impl LlmProvider for OpenAiProvider {
                     .ok_or_else(|| {
                         LlmError::InvalidResponse("missing choices[0].message.content".into())
                     })?;
+                let usage = parse_openai_usage(&value);
                 Ok(CompletionResponse {
                     content: content.to_string(),
+                    usage,
                 })
             }
             401 | 403 => Err(LlmError::Unauthorized),
@@ -106,6 +108,17 @@ impl LlmProvider for OpenAiProvider {
 /// Trim trailing slashes from the base URL (keep any `/v1` — OpenAI needs it).
 pub fn normalize_base(endpoint: &str) -> String {
     endpoint.trim().trim_end_matches('/').to_string()
+}
+
+/// Parse token usage from the OpenAI JSON response.
+fn parse_openai_usage(value: &serde_json::Value) -> Option<TokenUsage> {
+    let usage = value.get("usage")?;
+    let prompt = usage.get("prompt_tokens")?.as_u64()?;
+    let completion = usage.get("completion_tokens")?.as_u64()?;
+    Some(TokenUsage {
+        prompt_tokens: prompt,
+        completion_tokens: completion,
+    })
 }
 
 /// Map an HTTP status code to a [`ProviderStatus`].
@@ -199,5 +212,18 @@ mod tests {
             p.complete(request).await,
             Err(LlmError::Unauthorized)
         ));
+    }
+
+    #[test]
+    fn parses_usage_when_present() {
+        let json = serde_json::json!({
+            "usage": {
+                "prompt_tokens": 15,
+                "completion_tokens": 25
+            }
+        });
+        let usage = parse_openai_usage(&json).unwrap();
+        assert_eq!(usage.prompt_tokens, 15);
+        assert_eq!(usage.completion_tokens, 25);
     }
 }

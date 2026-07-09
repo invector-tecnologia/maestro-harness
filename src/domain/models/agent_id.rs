@@ -17,7 +17,7 @@ pub enum AgentIdError {
 }
 
 /// A non-empty, immutable agent identifier.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 pub struct AgentId(String);
 
 impl AgentId {

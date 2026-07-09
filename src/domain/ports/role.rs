@@ -9,7 +9,7 @@ use async_trait::async_trait;
 
 use crate::domain::models::{AgentId, Message, ReflectionOutput, ThinkingOutput};
 
-use super::LlmError;
+use super::{LlmError, TokenUsage};
 
 /// An agent's cognitive contract.
 #[async_trait]
@@ -31,4 +31,9 @@ pub trait Role: Send + Sync {
     /// REFLECT: review the output of act() for quality concerns.
     /// Pure — no I/O. Called only when act() produced a message.
     fn reflect(&self, output: &Message) -> ReflectionOutput;
+
+    /// Token usage from the most recent act() call, if tracked.
+    fn last_usage(&self) -> Option<TokenUsage> {
+        None
+    }
 }
