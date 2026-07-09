@@ -22,8 +22,8 @@ pub fn parse_tool_call(output: &str) -> Option<(ToolCall, String)> {
     // Text before and after the tool call block
     let surrounding = format!(
         "{}{}",
-        &output[..start].trim(),
-        &output[end + end_marker.len()..].trim()
+        output[..start].trim(),
+        output[end + end_marker.len()..].trim()
     );
     Some((call, surrounding))
 }
