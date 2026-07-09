@@ -18,9 +18,9 @@ use crate::domain::models::default_personas;
     about = "Maestro — tactical agentic orchestrator"
 )]
 pub struct Cli {
-    /// Run headless, without launching the Nim/Tatui TUI.
+    /// Launch the interactive Nim/Tatui TUI.
     #[arg(long, global = true)]
-    pub no_tui: bool,
+    pub tui: bool,
 
     #[command(subcommand)]
     pub command: Option<Command>,
@@ -74,7 +74,7 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Command::Doctor => doctor(&root)?,
         Command::Run => run_core()?,
         Command::Tui => launch_tui(None)?,
-        Command::Init { name } => init_project(name)?,
+        Command::Init { name } => init_project(name, cli.tui)?,
     }
     Ok(())
 }
@@ -191,16 +191,38 @@ fn run_core() -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Launch the Nim/Tatui TUI binary (`$MAESTRO_TUI` or `maestro_tui` on PATH).
+const TUI_BINARY: &[u8] = include_bytes!("../../../frontend/maestro_tui");
+
+/// Extract and launch the bundled Nim/Tatui TUI binary.
 fn launch_tui(cwd: Option<&std::path::Path>) -> anyhow::Result<()> {
-    let bin = std::env::var("MAESTRO_TUI").unwrap_or_else(|_| "maestro_tui".to_string());
-    let mut cmd = std::process::Command::new(&bin);
+    let temp_dir = std::env::temp_dir();
+    let tui_path = temp_dir.join(format!("maestro_tui_{}", std::process::id()));
+    
+    // Write bundled binary to temp directory
+    let mut file = std::fs::File::create(&tui_path)?;
+    file.write_all(TUI_BINARY)?;
+    
+    // Set executable permissions (Unix only)
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = file.metadata()?.permissions();
+        perms.set_mode(0o755);
+        file.set_permissions(perms)?;
+    }
+    drop(file);
+
+    let mut cmd = std::process::Command::new(&tui_path);
     if let Some(dir) = cwd {
         cmd.current_dir(dir);
     }
     let status = cmd
         .status()
-        .map_err(|e| anyhow::anyhow!("failed to launch TUI '{bin}': {e}"))?;
+        .map_err(|e| anyhow::anyhow!("failed to launch TUI: {e}"))?;
+        
+    // Cleanup temporary file
+    let _ = std::fs::remove_file(&tui_path);
+    
     if !status.success() {
         anyhow::bail!("TUI exited with status {status}");
     }
@@ -298,8 +320,8 @@ pub fn scaffold_project(root: &Path, answers: &InitAnswers) -> std::io::Result<V
     Ok(created)
 }
 
-/// Interactive bootstrap: collect answers, scaffold, then open the Workspace.
-fn init_project(name: Option<String>) -> anyhow::Result<()> {
+/// Interactive bootstrap: collect answers, scaffold, then open the Workspace if requested.
+fn init_project(name: Option<String>, tui: bool) -> anyhow::Result<()> {
     let base = std::env::current_dir()?;
     let stdin = std::io::stdin();
     let answers = prompt_answers(stdin.lock(), std::io::stdout(), name)?;
@@ -314,9 +336,11 @@ fn init_project(name: Option<String>) -> anyhow::Result<()> {
         target_dir.display(),
         created.join(", ")
     ));
-    print_line("opening Workspace (Maestro Mode)\u{2026}");
-    if let Err(e) = launch_tui(Some(&target_dir)) {
-        print_line(&format!("(TUI not launched: {e})"));
+    if tui {
+        print_line("opening Workspace (Maestro Mode)\u{2026}");
+        if let Err(e) = launch_tui(Some(&target_dir)) {
+            print_line(&format!("(TUI not launched: {e})"));
+        }
     }
     Ok(())
 }
@@ -333,16 +357,16 @@ mod tests {
     use clap::Parser;
 
     #[test]
-    fn parses_no_tui_flag() {
-        let cli = Cli::parse_from(["maestro", "--no-tui", "version"]);
-        assert!(cli.no_tui);
+    fn parses_tui_flag() {
+        let cli = Cli::parse_from(["maestro", "--tui", "version"]);
+        assert!(cli.tui);
         assert!(matches!(cli.command, Some(Command::Version)));
     }
 
     #[test]
     fn defaults_to_no_subcommand() {
         let cli = Cli::parse_from(["maestro"]);
-        assert!(!cli.no_tui);
+        assert!(!cli.tui);
         assert!(cli.command.is_none());
     }
 
