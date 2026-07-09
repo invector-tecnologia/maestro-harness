@@ -81,24 +81,23 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
 }
 
 fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
-    let mut out = std::io::stdout().lock();
-    let mut input = std::io::stdin().lock();
-    
     loop {
-        let _ = writeln!(out, "\nMaestro Interactive CLI");
-        let _ = writeln!(out, "1) Init new project");
-        let _ = writeln!(out, "2) Launch TUI");
-        let _ = writeln!(out, "3) Validate Config");
-        let _ = writeln!(out, "4) List Agents");
-        let _ = writeln!(out, "5) Scaffold Governance");
-        let _ = writeln!(out, "6) Doctor");
-        let _ = writeln!(out, "7) Exit");
-        let _ = write!(out, "\nSelect an option [1-7]: ");
-        let _ = out.flush();
+        {
+            let mut out = std::io::stdout().lock();
+            let _ = writeln!(out, "\nMaestro Interactive CLI");
+            let _ = writeln!(out, "1) Init new project");
+            let _ = writeln!(out, "2) Launch TUI");
+            let _ = writeln!(out, "3) Validate Config");
+            let _ = writeln!(out, "4) List Agents");
+            let _ = writeln!(out, "5) Scaffold Governance");
+            let _ = writeln!(out, "6) Doctor");
+            let _ = writeln!(out, "7) Exit");
+            let _ = write!(out, "\nSelect an option [1-7]: ");
+            let _ = out.flush();
+        }
         
         let mut line = String::new();
-        use std::io::BufRead;
-        input.read_line(&mut line)?;
+        std::io::stdin().read_line(&mut line)?;
         let choice = line.trim();
         
         let root = std::env::current_dir()?;
@@ -135,6 +134,7 @@ fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
                 break;
             }
             _ => {
+                let mut out = std::io::stdout().lock();
                 let _ = writeln!(out, "Invalid option, try again.");
             }
         }
