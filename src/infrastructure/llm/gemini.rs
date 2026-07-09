@@ -77,7 +77,8 @@ impl LlmProvider for GeminiProvider {
             return Err(LlmError::Unauthorized);
         }
 
-        let body = build_gemini_body(&request);
+        let body = build_gemini_body(&request)
+            .map_err(|e| LlmError::InvalidResponse(format!("failed to serialize request: {}", e)))?;
         let resp = self
             .client
             .post(self.generate_url(&request.model))
@@ -166,7 +167,7 @@ struct CandidateContent {
     parts: Vec<Part>,
 }
 
-pub fn build_gemini_body(request: &CompletionRequest) -> serde_json::Value {
+pub fn build_gemini_body(request: &CompletionRequest) -> Result<serde_json::Value, serde_json::Error> {
     let mut system_texts = Vec::new();
     let mut contents = Vec::new();
 
@@ -203,7 +204,7 @@ pub fn build_gemini_body(request: &CompletionRequest) -> serde_json::Value {
         contents,
     };
 
-    serde_json::to_value(req).unwrap()
+    serde_json::to_value(req)
 }
 
 #[cfg(test)]
@@ -254,7 +255,7 @@ mod tests {
                 Message::assistant(AgentId::new("Maestro").unwrap(), "hello").unwrap(),
             ],
         };
-        let body = build_gemini_body(&request);
+        let body = build_gemini_body(&request).unwrap();
 
         assert_eq!(body["systemInstruction"]["parts"][0]["text"], "be brief");
         assert_eq!(body["contents"][0]["role"], "user");
