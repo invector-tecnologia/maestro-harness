@@ -222,12 +222,14 @@ Each feature is described with a standardized card:
 - **Status:** ✅ Implemented
 - **Source:** `src/domain/models/persona.rs`
 - **Business Value:** 🟡 Medium
-- **What It Does Today:** 5 personas: Maestro (orchestrator), Project Manager, QA, UX, Software
-  Engineer. Each has responsibility text and interaction (handoff) matrix.
+- **What It Does Today:** 8 personas: Maestro (orchestrator), Project Manager, QA, UX, Software
+  Engineer, DevOps Engineer, Security Analyst, Technical Writer. Each has responsibility text,
+  curated system prompt, expertise keywords, skill tags, and interaction matrix.
 - **What It Should Do:** Expand to 8-10 personas (add DevOps, Security, Data Engineer,
   Documentation Writer). Each with detailed system prompts, skill bindings, tool access lists,
   temperature settings, and example outputs.
-- **Gap:** Personas are name+responsibility text only. No system prompts, no tool bindings.
+- **Gap:** No temperature settings or example outputs yet. Skill tags are defined but
+  not yet wired to runtime skill selection. Tool access lists are not implemented.
 - **Competitor Benchmark:**
   - *MetaGPT*: Product Manager, Architect, Project Manager, Engineer — each with full SOP
   - *Maestri*: Arbitrary agent types connected on visual canvas with shared memory

@@ -787,7 +787,7 @@ mod tests {
     fn lists_default_personas() {
         let names = agent_names();
         assert!(names.contains(&"Maestro".to_string()));
-        assert_eq!(names.len(), 5);
+        assert_eq!(names.len(), 8);
     }
 
     #[test]

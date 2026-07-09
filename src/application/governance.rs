@@ -159,10 +159,26 @@ pub fn read(root: &Path, id: &str) -> Result<String, GovernanceError> {
             .into_iter()
             .find(|p| format!("personas/{}", slug(&p.id.to_string())) == id)
         {
-            return Ok(format!(
+            let mut body = format!(
                 "# {}\n\n## Responsibility\n{}\n",
                 persona.id, persona.responsibility
-            ));
+            );
+            if !persona.system_prompt.is_empty() {
+                body.push_str(&format!("\n## System Prompt\n{}\n", persona.system_prompt));
+            }
+            if !persona.expertise_keywords.is_empty() {
+                body.push_str(&format!(
+                    "\n## Expertise Keywords\n{}\n",
+                    persona.expertise_keywords.join(", ")
+                ));
+            }
+            if !persona.skill_tags.is_empty() {
+                body.push_str(&format!(
+                    "\n## Skill Tags\n{}\n",
+                    persona.skill_tags.join(", ")
+                ));
+            }
+            return Ok(body);
         }
     }
     Err(GovernanceError::NotFound(id.to_string()))
@@ -231,6 +247,15 @@ pub fn validate(id: &str, body: &str) -> (bool, Vec<String>) {
             },
             Err(e) => (false, vec![format!("YAML parse error: {e}")]),
         }
+    } else if id.starts_with("personas/") {
+        let mut issues = Vec::new();
+        if !body.lines().any(|l| l.trim().starts_with("# ")) {
+            issues.push("persona must have a `# Name` heading".to_string());
+        }
+        if !body.to_lowercase().contains("## responsibility") {
+            issues.push("persona should have a `## Responsibility` section".to_string());
+        }
+        (issues.is_empty(), issues)
     } else if body.trim().is_empty() {
         (false, vec!["entry body is empty".to_string()])
     } else {
@@ -244,7 +269,14 @@ pub fn validate(id: &str, body: &str) -> (bool, Vec<String>) {
 fn parse_custom_persona(body: &str, maestro: &AgentId) -> Option<Persona> {
     let mut name = String::new();
     let mut responsibility = String::new();
+    let mut system_prompt = String::new();
+    let mut expertise_keywords = Vec::new();
+    let mut skill_tags = Vec::new();
     let mut in_responsibility = false;
+    let mut in_system_prompt = false;
+    let mut in_keywords = false;
+    let mut in_skill_tags = false;
+
     for line in body.lines() {
         let trimmed = line.trim();
         if let Some(heading) = trimmed.strip_prefix("# ") {
@@ -253,10 +285,50 @@ fn parse_custom_persona(body: &str, maestro: &AgentId) -> Option<Persona> {
             }
         } else if trimmed.eq_ignore_ascii_case("## responsibility") {
             in_responsibility = true;
+            in_system_prompt = false;
+            in_keywords = false;
+            in_skill_tags = false;
+        } else if trimmed.eq_ignore_ascii_case("## system prompt") {
+            in_system_prompt = true;
+            in_responsibility = false;
+            in_keywords = false;
+            in_skill_tags = false;
+        } else if trimmed.eq_ignore_ascii_case("## expertise keywords") {
+            in_keywords = true;
+            in_responsibility = false;
+            in_system_prompt = false;
+            in_skill_tags = false;
+        } else if trimmed.eq_ignore_ascii_case("## skill tags") {
+            in_skill_tags = true;
+            in_responsibility = false;
+            in_system_prompt = false;
+            in_keywords = false;
         } else if trimmed.starts_with("## ") {
             in_responsibility = false;
+            in_system_prompt = false;
+            in_keywords = false;
+            in_skill_tags = false;
         } else if in_responsibility && responsibility.is_empty() && !trimmed.is_empty() {
             responsibility = trimmed.to_string();
+        } else if in_system_prompt && !trimmed.is_empty() {
+            if !system_prompt.is_empty() {
+                system_prompt.push('\n');
+            }
+            system_prompt.push_str(trimmed);
+        } else if in_keywords && !trimmed.is_empty() {
+            expertise_keywords.extend(
+                trimmed
+                    .split(',')
+                    .map(|k| k.trim().to_lowercase())
+                    .filter(|k| !k.is_empty()),
+            );
+        } else if in_skill_tags && !trimmed.is_empty() {
+            skill_tags.extend(
+                trimmed
+                    .split(',')
+                    .map(|t| t.trim().to_lowercase())
+                    .filter(|t| !t.is_empty()),
+            );
         }
     }
     if name.is_empty() {
@@ -266,7 +338,16 @@ fn parse_custom_persona(body: &str, maestro: &AgentId) -> Option<Persona> {
         responsibility = format!("Custom persona: {name}.");
     }
     let id = AgentId::new(name).ok()?;
-    Persona::new(id, responsibility, vec![maestro.clone()], false).ok()
+    Persona::new(
+        id,
+        responsibility,
+        vec![maestro.clone()],
+        false,
+        system_prompt,
+        expertise_keywords,
+        skill_tags,
+    )
+    .ok()
 }
 
 /// The governed persona catalog: the built-in defaults plus any non-archived
@@ -359,6 +440,7 @@ mod tests {
         let root = temp_root("synth");
         let body = read(&root, "personas/software_engineer").unwrap();
         assert!(body.contains("Responsibility"));
+        assert!(body.contains("System Prompt"));
         std::fs::remove_dir_all(&root).ok();
     }
 
@@ -424,9 +506,64 @@ mod tests {
     }
 
     #[test]
+    fn parse_custom_persona_extracts_system_prompt() {
+        let root = temp_root("catalog-sysprompt");
+        create(
+            &root,
+            "personas/data_engineer",
+            "# Data Engineer\n\n## Responsibility\nBuild pipelines.\n\n## System Prompt\nYou are a data engineer.\nDo your best.\n",
+        )
+        .unwrap();
+
+        let after = load_personas(&root);
+        let data = after
+            .iter()
+            .find(|p| p.id.to_string() == "Data Engineer")
+            .unwrap();
+        assert_eq!(
+            data.system_prompt,
+            "You are a data engineer.\nDo your best."
+        );
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn parse_custom_persona_extracts_keywords_and_tags() {
+        let root = temp_root("catalog-keywords");
+        create(
+            &root,
+            "personas/api_designer",
+            "# API Designer\n\n## Responsibility\nREST.\n\n## Expertise Keywords\nrest, grpc, api\n\n## Skill Tags\nswagger, openapi",
+        )
+        .unwrap();
+
+        let after = load_personas(&root);
+        let api = after
+            .iter()
+            .find(|p| p.id.to_string() == "API Designer")
+            .unwrap();
+        assert_eq!(api.expertise_keywords, vec!["rest", "grpc", "api"]);
+        assert_eq!(api.skill_tags, vec!["swagger", "openapi"]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn validate_persona_requires_heading_and_responsibility() {
+        let (ok, issues) = validate("personas/x", "Just some text");
+        assert!(!ok);
+        assert!(issues.iter().any(|i| i.contains("`# Name`")));
+        assert!(issues.iter().any(|i| i.contains("`## Responsibility`")));
+    }
+
+    #[test]
     fn archived_custom_persona_is_excluded_from_catalog() {
         let root = temp_root("catalog-archived");
-        create(&root, "personas/temp_helper", "# Temp Helper\n").unwrap();
+        create(
+            &root,
+            "personas/temp_helper",
+            "# Temp Helper\n## Responsibility\nHelp.\n",
+        )
+        .unwrap();
         assert!(load_personas(&root)
             .iter()
             .any(|p| p.id.to_string() == "Temp Helper"));

@@ -36,15 +36,19 @@ impl PersonaAgent {
 
     /// Build the system prompt from the persona's identity.
     fn system_prompt(&self) -> String {
-        format!(
-            "You are '{}'. Your responsibility: {}\n\n\
-             Follow a structured approach:\n\
-             1. Interpret the task in terms of your specific role.\n\
-             2. Apply your expertise to produce a focused, actionable contribution.\n\
-             3. Flag any risks or concerns within your domain.\n\
-             4. Stay within your responsibility boundary — delegate what is outside it.",
-            self.persona.id, self.persona.responsibility
-        )
+        if !self.persona.system_prompt.is_empty() {
+            self.persona.system_prompt.clone()
+        } else {
+            format!(
+                "You are '{}'. Your responsibility: {}\n\n\
+                 Follow a structured approach:\n\
+                 1. Interpret the task in terms of your specific role.\n\
+                 2. Apply your expertise to produce a focused, actionable contribution.\n\
+                 3. Flag any risks or concerns within your domain.\n\
+                 4. Stay within your responsibility boundary — delegate what is outside it.",
+                self.persona.id, self.persona.responsibility
+            )
+        }
     }
 
     /// Heuristic: does the demand overlap with this persona's responsibility keywords?
@@ -190,9 +194,9 @@ mod tests {
     }
 
     #[test]
-    fn activates_four_operational_personas() {
+    fn activates_seven_operational_personas() {
         let agents = activate_default_agents(provider(), "mistral");
-        assert_eq!(agents.len(), 4);
+        assert_eq!(agents.len(), 7);
     }
 
     #[tokio::test]

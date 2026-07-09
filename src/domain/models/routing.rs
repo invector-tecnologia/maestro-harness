@@ -49,6 +49,9 @@ fn tokens(text: &str) -> Vec<String> {
 fn score(demand_tokens: &[String], persona: &Persona) -> u32 {
     let mut haystack = tokens(&persona.id.to_string());
     haystack.extend(tokens(&persona.responsibility));
+    for kw in &persona.expertise_keywords {
+        haystack.extend(tokens(kw));
+    }
     demand_tokens
         .iter()
         .filter(|t| haystack.iter().any(|h| h == *t))
@@ -148,5 +151,14 @@ mod tests {
         let mut sorted = ids.clone();
         sorted.sort();
         assert_eq!(ids, sorted);
+    }
+
+    #[test]
+    fn keywords_improve_routing_precision() {
+        let personas = default_personas();
+        // "deploy" and "container" match DevOps Engineer keywords, even if not in ID/Responsibility.
+        let routing = route("deploy the container", &personas);
+        assert!(routing.selected.iter().any(|p| p == "DevOps Engineer"));
+        assert!(!routing.used_fallback);
     }
 }

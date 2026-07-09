@@ -152,12 +152,21 @@ fn build_completer(
 /// and falls back to the deterministic placeholder otherwise.
 fn build_deliverer(root: &Path) -> impl Fn(&str, &str, &str) -> String {
     let completer = build_completer(root);
+    let personas = gov::load_personas(root);
     move |persona: &str, model: &str, demand: &str| -> String {
         if let Some((runtime, provider)) = &completer {
             let mut messages = Vec::new();
-            if let Ok(system) = Message::system(format!(
-                "You are the {persona} persona on a software team. Deliver your concise contribution to the task."
-            )) {
+            let sys_text = personas
+                .iter()
+                .find(|p| p.id.to_string() == persona)
+                .filter(|p| !p.system_prompt.is_empty())
+                .map(|p| p.system_prompt.clone())
+                .unwrap_or_else(|| {
+                    format!(
+                        "You are the {persona} persona on a software team. Deliver your concise contribution to the task."
+                    )
+                });
+            if let Ok(system) = Message::system(sys_text) {
                 messages.push(system);
             }
             if let Ok(user) = Message::user(demand) {
@@ -582,12 +591,13 @@ mod tests {
             &root,
             &[TuiCommand::ConfigSave {
                 id: "personas/maestro".to_string(),
-                body: "# hijack".to_string(),
+                body: "# hijack\n## Responsibility\nhijack".to_string(),
             }],
         );
-        assert!(evs
-            .iter()
-            .any(|e| matches!(e, CoreEvent::Log { level, message } if level == "warn" && message.contains("immutable"))));
+        assert!(evs.iter().any(|e| matches!(
+            e,
+            CoreEvent::Log { level, message } if level == "warn" && message.contains("immutable")
+        )));
         std::fs::remove_dir_all(&root).ok();
     }
 
