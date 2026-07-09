@@ -4,12 +4,14 @@ use std::path::{Path, PathBuf};
 
 /// Result of an init-config operation.
 pub struct InitConfigResult {
-    /// Path to the written config file.
+    /// Path to the written configuration file.
     pub path: PathBuf,
-    /// Whether the connection probe succeeded.
+    /// Whether the active connection probe succeeded.
     pub probe_ok: bool,
-    /// Human-readable probe message.
+    /// Diagnostic message from the probe.
     pub probe_msg: String,
+    /// Governance folder names created (empty if --governance was not passed).
+    pub governance_created: Vec<String>,
 }
 
 /// Known provider presets.
@@ -160,6 +162,7 @@ pub fn init_config_with_provider(
     provider: Option<String>,
     endpoint: Option<String>,
     model: Option<String>,
+    governance: bool,
 ) -> anyhow::Result<InitConfigResult> {
     // 1. Resolve which provider to use
     let preset = if let Some(ref p) = provider {
@@ -192,10 +195,18 @@ pub fn init_config_with_provider(
     // 3. Connection test
     let (probe_ok, probe_msg) = run_connection_test(root);
 
+    // 4. Optionally scaffold governance
+    let governance_created = if governance {
+        crate::presentation::cli::scaffold_markdown(root)?
+    } else {
+        Vec::new()
+    };
+
     Ok(InitConfigResult {
         path,
         probe_ok,
         probe_msg,
+        governance_created,
     })
 }
 

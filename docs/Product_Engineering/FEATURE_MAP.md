@@ -120,27 +120,26 @@ Each feature is described with a standardized card:
 
 ### 1.5 `maestro list-agents` — Persona Catalog
 
-- **Status:** ✅ Implemented
+- **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/presentation/cli/mod.rs`
-- **Business Value:** 🟢 Low
-- **What It Does Today:** Lists default + custom persona names.
-- **What It Should Do:** Show per-agent model binding, provider, status, skills, and last activity.
-  Table format with rich detail. `--json` output for scripting.
-- **Gap:** Name-only listing. No status or binding information.
+- **Business Value:** 🟡 Medium
+- **What It Does Today:** Prints a formatted table showing Name, Role (orchestrator/operational), Provider, Model, and Responsibility for each persona. Resolves per-agent config bindings or falls back to system defaults. Includes a Handoff Matrix showing the interaction graph. `--json` flag for machine-readable output.
+- **What It Should Do:** Show per-agent last activity timestamp, skill inventory, and current task assignment.
+- **Gap:** No activity tracking or skill listing (requires runtime state).
 - **Competitor Benchmark:**
   - *MetaGPT*: Lists roles with responsibilities, skills, and assigned models
   - *CrewAI*: Agent catalog with backstories, tools, and delegation rules
+    **Maestro now matches competitors on catalog detail and adds a unique handoff matrix visualization.**
 
 ---
 
-### 1.6 `maestro scaffold-markdown` — Governance Folders
+### 1.6 `maestro init-config --governance` — Governance Folders
 
-- **Status:** ✅ Implemented
-- **Source:** `src/presentation/cli/mod.rs`
+- **Status:** ✅ Implemented (enhanced)
+- **Source:** `src/presentation/cli/mod.rs`, `src/presentation/cli/providers.rs`
 - **Business Value:** 🟢 Low
-- **What It Does Today:** Creates `maestro/` governance folder structure.
-- **What It Should Do:** Auto-populate with contextual starter content. Include example persona and
-  skill definitions. Generate from project type template.
+- **What It Does Today:** Governance scaffolding is triggered by passing `--governance` to `init-config`, reducing the number of setup steps required.
+- **What It Should Do:** Auto-populate with contextual starter content. Include example persona and skill definitions. Generate from project type template.
 - **Gap:** Empty folder creation only.
 - **Competitor Benchmark:** No direct equivalent — governance folders are unique to Maestro.
 

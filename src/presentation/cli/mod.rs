@@ -40,10 +40,12 @@ pub enum Command {
         #[arg(long)]
         fix: bool,
     },
-    /// List the registered personas.
-    ListAgents,
-    /// Create the mandatory governance markdown scaffold.
-    ScaffoldMarkdown,
+    /// List the registered personas with details.
+    ListAgents {
+        /// Output as JSON for scripting.
+        #[arg(long)]
+        json: bool,
+    },
     /// Generate `maestro/config.yml` from a template.
     InitConfig {
         /// Provider kind: ollama, openai, or gemini.
@@ -55,6 +57,9 @@ pub enum Command {
         /// Override the default model name.
         #[arg(long)]
         model: Option<String>,
+        /// Also create governance folders (scopes, personas, skills).
+        #[arg(long)]
+        governance: bool,
     },
     /// Run readiness checks (config, governance).
     Doctor,
@@ -80,22 +85,21 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
     match cli.command {
         Some(Command::Version) => print_line(&format!("maestro {}", env!("CARGO_PKG_VERSION"))),
         Some(Command::ValidateConfig { fix }) => validate_config(&root, fix)?,
-        Some(Command::ListAgents) => {
-            for name in agent_names() {
-                print_line(&name);
-            }
-        }
-        Some(Command::ScaffoldMarkdown) => {
-            let created = scaffold_markdown(&root)?;
-            print_line(&format!("scaffolded governance: {}", created.join(", ")));
-        }
+        Some(Command::ListAgents { json }) => list_agents_rich(&root, json)?,
         Some(Command::InitConfig {
             provider,
             endpoint,
             model,
+            governance,
         }) => {
-            let result = providers::init_config_with_provider(&root, provider, endpoint, model)?;
+            let result = providers::init_config_with_provider(&root, provider, endpoint, model, governance)?;
             print_line(&format!("wrote {}", result.path.display()));
+            if !result.governance_created.is_empty() {
+                print_line(&format!(
+                    "scaffolded governance: {}",
+                    result.governance_created.join(", ")
+                ));
+            }
             print_line(&format!(
                 "[{}] connection: {}",
                 pass_fail(result.probe_ok),
@@ -159,8 +163,19 @@ fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
                 break;
             }
             "5" => {
-                let created = scaffold_markdown(&root)?;
-                print_line(&format!("scaffolded governance: {}", created.join(", ")));
+                let result = providers::init_config_with_provider(&root, None, None, None, true)?;
+                print_line(&format!("wrote {}", result.path.display()));
+                if !result.governance_created.is_empty() {
+                    print_line(&format!(
+                        "scaffolded governance: {}",
+                        result.governance_created.join(", ")
+                    ));
+                }
+                print_line(&format!(
+                    "[{}] connection: {}",
+                    pass_fail(result.probe_ok),
+                    result.probe_msg
+                ));
                 break;
             }
             "6" => {
@@ -185,6 +200,95 @@ pub fn agent_names() -> Vec<String> {
         .into_iter()
         .map(|p| p.id.to_string())
         .collect()
+}
+
+/// Print a rich table of personas with bindings resolved from config (if available).
+fn list_agents_rich(root: &Path, json: bool) -> anyhow::Result<()> {
+    let personas = default_personas();
+    let config = crate::infrastructure::config::load_from(root).ok();
+
+    #[derive(serde::Serialize)]
+    struct AgentRow {
+        name: String,
+        role: String,
+        responsibility: String,
+        provider: String,
+        model: String,
+        handoffs: Vec<String>,
+    }
+
+    let rows: Vec<AgentRow> = personas
+        .iter()
+        .map(|p| {
+            let name = p.id.to_string();
+            let role = if p.orchestrator {
+                "orchestrator".to_string()
+            } else {
+                "operational".to_string()
+            };
+            let (provider, model) = if let Some(ref cfg) = config {
+                if let Some(binding) = cfg.agents.get(&name) {
+                    (binding.provider.clone(), binding.model.clone())
+                } else {
+                    (
+                        cfg.system.default_provider.clone(),
+                        cfg.system.default_model.clone(),
+                    )
+                }
+            } else {
+                ("(no config)".to_string(), "(no config)".to_string())
+            };
+            let handoffs = p
+                .can_handoff_to
+                .iter()
+                .map(|h| h.to_string())
+                .collect::<Vec<_>>();
+
+            AgentRow {
+                name,
+                role,
+                responsibility: p.responsibility.clone(),
+                provider,
+                model,
+                handoffs,
+            }
+        })
+        .collect();
+
+    if json {
+        let out = serde_json::to_string_pretty(&rows)?;
+        print_line(&out);
+        return Ok(());
+    }
+
+    // Table header
+    print_line(&format!(
+        "{:<20} {:<14} {:<16} {:<16} {}",
+        "NAME", "ROLE", "PROVIDER", "MODEL", "RESPONSIBILITY"
+    ));
+    print_line(&"-".repeat(90));
+
+    for row in &rows {
+        print_line(&format!(
+            "{:<20} {:<14} {:<16} {:<16} {}",
+            row.name, row.role, row.provider, row.model, row.responsibility
+        ));
+    }
+
+    // Handoff matrix
+    print_line("");
+    print_line("Handoff Matrix:");
+    for row in &rows {
+        if !row.handoffs.is_empty() {
+            print_line(&format!(
+                "  {} → {}",
+                row.name,
+                row.handoffs.join(", ")
+            ));
+        }
+    }
+
+    Ok(())
 }
 
 /// Create the `scopes`/`personas`/`skills` governance folders under `root/maestro`.
