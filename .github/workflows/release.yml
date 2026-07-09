@@ -39,6 +39,17 @@ jobs:
       - name: Cache cargo build
         uses: Swatinem/rust-cache@v2
 
+      - name: Install Nim
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: "2.2.x"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build TUI
+        run: |
+          ./scripts/install-tatui.sh
+          cd frontend && nimble build -d:release -y
+
       - name: Build release binary
         run: cargo build --release --locked
 

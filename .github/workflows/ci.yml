@@ -35,6 +35,10 @@ jobs:
             echo "No Cargo.toml yet — Rust core not scaffolded. Skipping."
           fi
 
+      - name: Create dummy TUI binary for Cargo compilation
+        if: steps.guard.outputs.present == 'true'
+        run: mkdir -p frontend && touch frontend/maestro_tui
+
       - name: Format check
         if: steps.guard.outputs.present == 'true'
         run: cargo fmt --all --check
