@@ -106,6 +106,9 @@ proc handleKey(s: var WorkspaceState, ev: KeyEvent, inStream: Stream) =
         inStream.sendCommand("run_demo", %*{"release": rel})
   of kcChar:
     let ch = $ev.rune
+    if kmCtrl in ev.mods and (ch == "q" or ch == "Q"):
+      s.running = false
+      return
     if s.modeName == "maestro" and s.hasPendingApproval and ch in ["y", "Y", "n", "N"]:
       let approved = ch in ["y", "Y"]
       inStream.sendCommand(

@@ -29,7 +29,7 @@ proc newWorkspaceState*(startMode = 1): WorkspaceState =
   ## A fresh state; defaults to Maestro Mode (index 1) per the `init` hand-off.
   WorkspaceState(
     modeIndex: startMode,
-    status: "F1 Config  F2 Maestro  F3 Product  |  Tab cycle  |  Esc quit",
+    status: "F1 Config  F2 Maestro  F3 Product  |  Tab cycle  |  Ctrl+D quit",
     running: true,
   )
 
