@@ -4,6 +4,7 @@
 //! the layers below return typed errors.
 
 mod detect;
+mod providers;
 mod templates;
 
 use std::io::Write;
@@ -34,14 +35,27 @@ pub struct Cli {
 pub enum Command {
     /// Print version information.
     Version,
-    /// Validate `maestro/config.yml` and its cross-references.
-    ValidateConfig,
+    ValidateConfig {
+        /// Attempt to automatically repair structural errors.
+        #[arg(long)]
+        fix: bool,
+    },
     /// List the registered personas.
     ListAgents,
     /// Create the mandatory governance markdown scaffold.
     ScaffoldMarkdown,
     /// Generate `maestro/config.yml` from a template.
-    InitConfig,
+    InitConfig {
+        /// Provider kind: ollama, openai, or gemini.
+        #[arg(long)]
+        provider: Option<String>,
+        /// Override the default endpoint URL.
+        #[arg(long)]
+        endpoint: Option<String>,
+        /// Override the default model name.
+        #[arg(long)]
+        model: Option<String>,
+    },
     /// Run readiness checks (config, governance).
     Doctor,
     /// Run the headless duplex IPC core (reads commands on stdin, writes events on stdout).
@@ -65,7 +79,7 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
     match cli.command {
         Some(Command::Version) => print_line(&format!("maestro {}", env!("CARGO_PKG_VERSION"))),
-        Some(Command::ValidateConfig) => validate_config(&root)?,
+        Some(Command::ValidateConfig { fix }) => validate_config(&root, fix)?,
         Some(Command::ListAgents) => {
             for name in agent_names() {
                 print_line(&name);
@@ -75,9 +89,18 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
             let created = scaffold_markdown(&root)?;
             print_line(&format!("scaffolded governance: {}", created.join(", ")));
         }
-        Some(Command::InitConfig) => {
-            let path = init_config(&root)?;
-            print_line(&format!("wrote {}", path.display()));
+        Some(Command::InitConfig {
+            provider,
+            endpoint,
+            model,
+        }) => {
+            let result = providers::init_config_with_provider(&root, provider, endpoint, model)?;
+            print_line(&format!("wrote {}", result.path.display()));
+            print_line(&format!(
+                "[{}] connection: {}",
+                pass_fail(result.probe_ok),
+                result.probe_msg
+            ));
         }
         Some(Command::Doctor) => doctor(&root)?,
         Some(Command::Run) => run_core()?,
@@ -126,7 +149,7 @@ fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
                 break;
             }
             "3" => {
-                validate_config(&root)?;
+                validate_config(&root, false)?;
                 break;
             }
             "4" => {
@@ -204,35 +227,92 @@ providers:
   #     - name: gpt-4o-mini
 "#;
 
-fn validate_config(root: &Path) -> anyhow::Result<()> {
-    match crate::infrastructure::config::load_from(root) {
-        Ok(config) => {
-            print_line(&format!(
-                "config OK: {} provider(s), default {}/{}",
-                config.providers.len(),
-                config.system.default_provider,
-                config.system.default_model
-            ));
-            Ok(())
+fn validate_config(root: &Path, fix: bool) -> anyhow::Result<()> {
+    // 1. Load config (without strict validation yet to allow repair)
+    let text = std::fs::read_to_string(root.join("maestro/config.yml"))?;
+    let mut config: crate::domain::models::config::MaestroConfig = serde_yaml::from_str(&text)?;
+    
+    // 2. Validate structural integrity
+    if let Err(e) = config.validate() {
+        if fix {
+            print_line(&format!("structural error: {e}"));
+            print_line("attempting --fix...");
+            if config.repair() && config.validate().is_ok() {
+                crate::infrastructure::config::save_to(root, &config)?;
+                print_line("repair successful. config.yml rewritten.");
+            } else {
+                anyhow::bail!("could not auto-repair. Suggestion: {}", e.suggestion());
+            }
+        } else {
+            print_line(&format!("Suggestion: {}", e.suggestion()));
+            anyhow::bail!(e);
         }
-        Err(e) => Err(anyhow::anyhow!(e)),
     }
+    
+    print_line("structural validation: OK");
+
+    // 3. Validate remote connectivity via Tokio one-shot runtime
+    let registry = crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config)?;
+    let rt = tokio::runtime::Runtime::new()?;
+    
+    for (key, provider_config) in &config.providers {
+        let provider = registry.resolve(key);
+        let status = rt.block_on(crate::application::readiness::probe_provider(provider));
+        print_line(&format!(
+            "provider '{}' ({}): {:?}",
+            key, provider_config.endpoint, status
+        ));
+    }
+    
+    Ok(())
 }
 
 fn doctor(root: &Path) -> anyhow::Result<()> {
-    let config = crate::infrastructure::config::load_from(root);
-    print_line(&format!("[{}] configuration", pass_fail(config.is_ok())));
+    print_line("🩺 Maestro System Health Report");
+    print_line("-------------------------------");
+
+    // 1. Toolchain & Environment
+    let sys = crate::infrastructure::system::check_system();
+    print_line(&format!("[{}] git toolchain", pass_fail(sys.git_available)));
+    print_line(&format!("[{}] nim compiler (for TUI)", pass_fail(sys.nim_available)));
+    
+    if let Some(gpu) = sys.gpu_info {
+        print_line(&format!("[{}] local accelerator: {}", pass_fail(true), gpu));
+    } else {
+        print_line(&format!("[ ] local accelerator (none detected)"));
+    }
+
+    print_line("");
+
+    // 2. Configuration & Governance
+    let config_res = crate::infrastructure::config::load_from(root);
+    print_line(&format!("[{}] configuration (maestro/config.yml)", pass_fail(config_res.is_ok())));
 
     let governance = crate::application::governance::validate_dir(&root.join("maestro"))?;
-    print_line(&format!(
-        "[{}] governance scaffold{}",
-        pass_fail(governance.is_valid()),
-        if governance.is_valid() {
-            String::new()
-        } else {
-            format!(" (missing: {})", governance.missing.join(", "))
+    let gov_status = if governance.is_valid() {
+        "".to_string()
+    } else {
+        format!(" (missing: {})", governance.missing.join(", "))
+    };
+    print_line(&format!("[{}] governance scaffold{}", pass_fail(governance.is_valid()), gov_status));
+
+    print_line("");
+
+    // 3. Provider Connectivity (if config is valid)
+    if let Ok(config) = config_res {
+        let registry = crate::infrastructure::llm::registry::ProviderRegistry::from_config(&config)?;
+        let rt = tokio::runtime::Runtime::new()?;
+        
+        for key in config.providers.keys() {
+            let provider = registry.resolve(key);
+            let status = rt.block_on(crate::application::readiness::probe_provider(provider));
+            let ok = matches!(status, crate::domain::ports::ProviderStatus::Available);
+            print_line(&format!("[{}] provider '{}': {:?}", pass_fail(ok), key, status));
         }
-    ));
+    } else {
+        print_line("[FAIL] skipping provider probes (config invalid)");
+    }
+
     Ok(())
 }
 

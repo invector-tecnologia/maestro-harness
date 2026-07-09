@@ -85,6 +85,26 @@ pub enum ConfigError {
     },
 }
 
+impl ConfigError {
+    /// Returns a human-readable suggestion to fix the error.
+    pub fn suggestion(&self) -> String {
+        match self {
+            Self::UnknownDefaultProvider(p) => {
+                format!("Check your spelling. Did you declare '{}' under the `providers:` block?", p)
+            }
+            Self::UnknownDefaultModel { provider, model } => {
+                format!("Provider '{}' does not have a model named '{}'. Try adding it to the `models:` list for that provider.", provider, model)
+            }
+            Self::UnknownAgentProvider { agent, provider } => {
+                format!("Agent '{}' pins an unknown provider '{}'. Update its binding.", agent, provider)
+            }
+            Self::UnknownAgentModel { agent, provider, model } => {
+                format!("Agent '{}' pins unknown model '{}' on provider '{}'.", agent, model, provider)
+            }
+        }
+    }
+}
+
 impl MaestroConfig {
     /// Validate cross-references: every referenced provider/model must exist.
     pub fn validate(&self) -> Result<(), ConfigError> {
@@ -114,6 +134,50 @@ impl MaestroConfig {
             }
         }
         Ok(())
+    }
+
+    /// Attempts to safely repair common structural errors.
+    /// Returns true if changes were made.
+    pub fn repair(&mut self) -> bool {
+        let mut modified = false;
+
+        // Repair dangling default provider
+        if !self.providers.contains_key(&self.system.default_provider) {
+            if self.providers.len() == 1 {
+                let only_provider = self.providers.keys().next().unwrap().clone();
+                self.system.default_provider = only_provider;
+                modified = true;
+            }
+        }
+
+        // Repair dangling default model
+        if let Some(provider) = self.providers.get(&self.system.default_provider) {
+            if !model_exists(provider, &self.system.default_model) {
+                if provider.models.len() == 1 {
+                    self.system.default_model = provider.models[0].name.clone();
+                    modified = true;
+                }
+            }
+        }
+
+        // Drop invalid agent bindings
+        let invalid_agents: Vec<String> = self.agents.iter()
+            .filter(|(_, binding)| {
+                let provider_ok = self.providers.contains_key(&binding.provider);
+                let model_ok = self.providers.get(&binding.provider)
+                    .map(|p| model_exists(p, &binding.model))
+                    .unwrap_or(false);
+                !provider_ok || !model_ok
+            })
+            .map(|(k, _)| k.clone())
+            .collect();
+            
+        for agent in invalid_agents {
+            self.agents.remove(&agent);
+            modified = true;
+        }
+
+        modified
     }
 }
 

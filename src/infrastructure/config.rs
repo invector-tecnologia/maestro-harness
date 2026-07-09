@@ -92,6 +92,20 @@ fn parse_and_validate(path: &Path) -> Result<MaestroConfig, ConfigLoadError> {
     Ok(config)
 }
 
+/// Save a configuration to the given project root's maestro/config.yml.
+pub fn save_to(project_root: &Path, config: &MaestroConfig) -> Result<(), ConfigLoadError> {
+    let path = project_root.join("maestro/config.yml");
+    let text = serde_yaml::to_string(config).map_err(|source| ConfigLoadError::Parse {
+        path: path.display().to_string(),
+        source,
+    })?;
+    std::fs::write(&path, text).map_err(|source| ConfigLoadError::Io {
+        path: path.display().to_string(),
+        source,
+    })?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

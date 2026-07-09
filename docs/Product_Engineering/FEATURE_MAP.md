@@ -74,48 +74,47 @@ Each feature is described with a standardized card:
 
 ### 1.2 `maestro init-config` — Config Bootstrap
 
-- **Status:** ✅ Implemented
-- **Source:** `src/presentation/cli/mod.rs`
-- **Business Value:** 🟢 Low
-- **What It Does Today:** Writes a default `config.yml` to `maestro/`.
-- **What It Should Do:** Support `--provider ollama|openai|gemini` to pre-populate provider block.
-  Interactive provider setup with connection test. Environment-aware defaults.
-- **Gap:** No provider pre-population, no interactive setup.
+- **Status:** ✅ Implemented (enhanced)
+- **Source:** `src/presentation/cli/mod.rs`, `src/presentation/cli/providers.rs`
+- **Business Value:** 🟡 Medium
+- **What It Does Today:** Supports `--provider ollama|openai|gemini` to pre-populate the correct provider block. Auto-detects running Ollama and environment API keys. Runs an instant connection test after config generation. Supports `--endpoint` and `--model` for CI/scripting.
+- **What It Should Do:** Full interactive TUI-based provider wizard with model browsing from live Ollama catalog. Multi-provider config (configure all detected providers at once).
+- **Gap:** No interactive TUI wizard. No live model listing from Ollama `/api/tags`.
 - **Competitor Benchmark:**
   - *OpenCode*: Interactive model selection on first run, auto-discovers Ollama
-  - *Claude Code*: API key prompt on first launch, instant connection test
+  - *Claude Code*: API key prompt on first launch, instant connection test.
+    **Maestro now matches Claude Code's connection-test and OpenCode's auto-discovery.**
 
 ---
 
 ### 1.3 `maestro validate-config` — Config Validation
 
-- **Status:** ✅ Implemented
+- **Status:** ✅ Implemented (enhanced)
 - **Source:** `src/presentation/cli/mod.rs`, `src/infrastructure/config.rs`
-- **Business Value:** 🟢 Low
+- **Business Value:** 🟡 Medium
 - **What It Does Today:** Parses + validates `config.yml` with cross-reference checking
-  (providers/models/agents). Reports typed errors.
-- **What It Should Do:** `--fix` flag for auto-repair of common issues. Suggest fixes in error
-  messages. Validate against remote provider availability.
-- **Gap:** No auto-fix, no fix suggestions.
+  (providers/models/agents). Reports typed errors with inline suggestions. Runs active network probes against configured endpoints. Supports `--fix` for auto-repairing dangling defaults.
+- **What It Should Do:** Offer interactive CLI prompts for repairing complex errors instead of just `--fix` or dropping them.
+- **Gap:** No interactive repair wizard.
 - **Competitor Benchmark:**
   - *OpenCode*: Auto-validates on startup with inline error messages
   - *Aider*: Model validation with fallback suggestions
+    **Maestro now matches OpenCode and Aider with inline suggestions, plus adds auto-fix and active probing.**
 
 ---
 
 ### 1.4 `maestro doctor` — System Health Check
 
-- **Status:** ✅ Implemented
-- **Source:** `src/presentation/cli/mod.rs`, `src/application/readiness.rs`
+- **Status:** ✅ Implemented (enhanced)
+- **Source:** `src/presentation/cli/mod.rs`, `src/application/readiness.rs`, `src/infrastructure/system.rs`
 - **Business Value:** 🟡 Medium
-- **What It Does Today:** Probes configured providers, reports availability status
-  (Available/Unreachable/Unauthorized/ModelMissing).
-- **What It Should Do:** Check Nim/Tatui availability, governance folder integrity, git setup, disk
-  space, GPU capabilities for local models. Produce a health report card. Check for updates.
-- **Gap:** Provider-only health check. No system-level diagnostics.
+- **What It Does Today:** Produces a comprehensive health report card covering Toolchain (Git, Nim), local hardware accelerators (NVIDIA/Apple Silicon), Governance integrity, and active network provider probes.
+- **What It Should Do:** Add automatic check for Maestro binary updates via crates.io or GitHub releases. Add disk space warning for huge LLM caches.
+- **Gap:** No update checker. No disk space check.
 - **Competitor Benchmark:**
   - *OpenCode*: Comprehensive diagnostics including LSP, environment, and model availability
   - *Claude Code*: `/doctor` command with permission, config, and connection checks
+    **Maestro matches competitors and uniquely detects hardware for local LLM acceleration.**
 
 ---
 
