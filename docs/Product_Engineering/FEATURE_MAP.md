@@ -59,19 +59,16 @@ Each feature is described with a standardized card:
 
 ### 1.1 `maestro init` — Project Scaffolding
 
-- **Status:** ✅ Implemented
-- **Source:** `src/presentation/cli/mod.rs`
+- **Status:** ✅ Implemented (enhanced)
+- **Source:** `src/presentation/cli/mod.rs`, `src/presentation/cli/templates.rs`, `src/presentation/cli/detect.rs`
 - **Business Value:** 🟡 Medium
-- **What It Does Today:** Interactive prompts for project name, scope, kind, layout references.
-  Creates `maestro/` governance folders, `config.yml`, and scaffold structure.
-- **What It Should Do:** Template gallery (web app, CLI tool, library, infra automation). Auto-detect
-  existing project context (language, framework). Generate starter `.spec` files. Support
-  `--template <name>` flag for non-interactive bootstrap.
-- **Gap:** No templates, no project auto-detection, no starter specs.
+- **What It Does Today:** Interactive prompts with project auto-detection (Cargo.toml, package.json, go.mod, etc.). Template gallery with 4 templates (web-app, cli-tool, library, infra). Generates starter task specs in `maestro/tasks/`. Supports `--template <name>` for non-interactive CI-friendly bootstrapping. `list-templates` command shows available options.
+- **What It Should Do:** Community template registry (remote fetch, opt-in). AI-assisted scope generation from a one-sentence description. Template composition (combine templates). Framework-specific templates (e.g., "rust-axum-api", "react-nextjs").
+- **Gap:** Templates are generic (not framework-specific). No remote registry. No AI-assisted generation.
 - **Competitor Benchmark:**
   - *OpenCode*: Zero-config init — auto-discovers project from current directory
   - *Aider*: No init needed — works with any existing Git repo immediately
-  - *MetaGPT*: Init generates PRD, system design, and API spec from a single sentence
+  - *MetaGPT*: Init generates PRD, system design, and API spec from a single sentence. **Maestro now matches MetaGPT's template concept but not its AI-generated content.**
 
 ---
 

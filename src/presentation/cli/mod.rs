@@ -3,6 +3,9 @@
 //! The governance command set. `anyhow` aggregation is confined to this boundary;
 //! the layers below return typed errors.
 
+mod detect;
+mod templates;
+
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
@@ -49,7 +52,12 @@ pub enum Command {
     Init {
         /// Optional project name; prompted if omitted.
         name: Option<String>,
+        /// Use a project template for non-interactive setup.
+        #[arg(long)]
+        template: Option<String>,
     },
+    /// List available project templates.
+    ListTemplates,
 }
 
 /// Dispatch a parsed [`Cli`] invocation.
@@ -74,7 +82,13 @@ pub fn dispatch(cli: Cli) -> anyhow::Result<()> {
         Some(Command::Doctor) => doctor(&root)?,
         Some(Command::Run) => run_core()?,
         Some(Command::Tui) => launch_tui(None)?,
-        Some(Command::Init { name }) => init_project(name, cli.no_tui)?,
+        Some(Command::Init { name, template }) => init_project(name, template, cli.no_tui)?,
+        Some(Command::ListTemplates) => {
+            print_line("Available templates:");
+            for (key, desc) in templates::list() {
+                print_line(&format!("  {key:<12} — {desc}"));
+            }
+        }
         None => interactive_main_menu(cli.no_tui)?,
     }
     Ok(())
@@ -95,16 +109,16 @@ fn interactive_main_menu(no_tui: bool) -> anyhow::Result<()> {
             let _ = write!(out, "\nSelect an option [1-7]: ");
             let _ = out.flush();
         }
-        
+
         let mut line = String::new();
         std::io::stdin().read_line(&mut line)?;
         let choice = line.trim();
-        
+
         let root = std::env::current_dir()?;
-        
+
         match choice {
             "1" => {
-                init_project(None, no_tui)?;
+                init_project(None, None, no_tui)?;
                 break;
             }
             "2" => {
@@ -243,8 +257,6 @@ pub struct InitAnswers {
     pub layout_refs: Vec<String>,
 }
 
-const PROJECT_TYPES: [&str; 4] = ["library", "Web", "Desktop", "Mobile"];
-
 /// Run the headless duplex IPC core over stdin/stdout, rooted at the current dir.
 fn run_core() -> anyhow::Result<()> {
     let root = std::env::current_dir()?;
@@ -260,11 +272,11 @@ const TUI_BINARY: &[u8] = include_bytes!("../../../frontend/maestro_tui");
 fn launch_tui(cwd: Option<&std::path::Path>) -> anyhow::Result<()> {
     let temp_dir = std::env::temp_dir();
     let tui_path = temp_dir.join(format!("maestro_tui_{}", std::process::id()));
-    
+
     // Write bundled binary to temp directory
     let mut file = std::fs::File::create(&tui_path)?;
     file.write_all(TUI_BINARY)?;
-    
+
     // Set executable permissions (Unix only)
     #[cfg(unix)]
     {
@@ -282,10 +294,10 @@ fn launch_tui(cwd: Option<&std::path::Path>) -> anyhow::Result<()> {
     let status = cmd
         .status()
         .map_err(|e| anyhow::anyhow!("failed to launch TUI: {e}"))?;
-        
+
     // Cleanup temporary file
     let _ = std::fs::remove_file(&tui_path);
-    
+
     if !status.success() {
         anyhow::bail!("TUI exited with status {status}");
     }
@@ -318,16 +330,15 @@ pub fn prompt_answers(
         scope = read_line(&mut input)?;
     }
 
+    let template_keys: Vec<&str> = templates::TEMPLATES.iter().map(|t| t.key).collect();
     write!(
         out,
-        "Project type [library/Web/Desktop/Mobile] (optional): "
+        "Project template [{}] (optional): ",
+        template_keys.join("/")
     )?;
     out.flush()?;
     let type_raw = read_line(&mut input)?;
-    let kind = PROJECT_TYPES
-        .iter()
-        .find(|t| t.eq_ignore_ascii_case(&type_raw))
-        .map(|t| (*t).to_string());
+    let kind = templates::find(&type_raw).map(|t| t.key.to_string());
 
     let mut layout_refs = Vec::new();
     loop {
@@ -360,35 +371,96 @@ pub fn scaffold_project(root: &Path, answers: &InitAnswers) -> std::io::Result<V
         .chars()
         .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
         .collect();
+
+    // Use template content if a known template was selected, otherwise fallback
     let scope_path = root
         .join("maestro")
         .join("scopes")
         .join(format!("{slug}.md"));
+    let template = answers.kind.as_deref().and_then(templates::find);
 
-    let mut body = format!(
-        "# Scope: {}\n\n- Project: {}\n",
-        answers.scope, answers.name
-    );
-    if let Some(kind) = &answers.kind {
-        body.push_str(&format!("- Type: {kind}\n"));
-    }
-    if !answers.layout_refs.is_empty() {
-        body.push_str("- Layout references:\n");
-        for reference in &answers.layout_refs {
-            body.push_str(&format!("  - {reference}\n"));
+    if let Some(tmpl) = template {
+        // Write template-enriched scope
+        std::fs::write(&scope_path, tmpl.scope_content)?;
+        created.push(format!("scopes/{slug}.md"));
+
+        // Write starter task spec
+        let tasks_dir = root.join("maestro").join("tasks");
+        std::fs::create_dir_all(&tasks_dir)?;
+        let task_path = tasks_dir.join("001_initial_setup.md");
+        std::fs::write(&task_path, tmpl.task_spec)?;
+        created.push("tasks/001_initial_setup.md".to_string());
+    } else {
+        // Fallback: original minimal scope
+        let mut body = format!(
+            "# Scope: {}\n\n- Project: {}\n",
+            answers.scope, answers.name
+        );
+        if let Some(kind) = &answers.kind {
+            body.push_str(&format!("- Type: {kind}\n"));
         }
+        if !answers.layout_refs.is_empty() {
+            body.push_str("- Layout references:\n");
+            for reference in &answers.layout_refs {
+                body.push_str(&format!("  - {reference}\n"));
+            }
+        }
+        std::fs::write(&scope_path, body)?;
+        created.push(format!("scopes/{slug}.md"));
     }
-    std::fs::write(&scope_path, body)?;
-    created.push(format!("scopes/{slug}.md"));
     Ok(created)
 }
 
 /// Interactive bootstrap: collect answers, scaffold, then open the Workspace if requested.
-fn init_project(name: Option<String>, no_tui: bool) -> anyhow::Result<()> {
+fn init_project(
+    name: Option<String>,
+    template: Option<String>,
+    no_tui: bool,
+) -> anyhow::Result<()> {
     let base = std::env::current_dir()?;
-    let stdin = std::io::stdin();
-    let answers = prompt_answers(stdin.lock(), std::io::stdout(), name)?;
-    
+
+    // Auto-detect existing project context
+    let detected = detect::detect(&base);
+    if let Some(ref d) = detected {
+        print_line(&format!("detected {} project ({})", d.ecosystem, d.marker));
+    }
+
+    // If --template is given, skip interactive prompts entirely
+    let answers = if let Some(ref tmpl_key) = template {
+        if templates::find(tmpl_key).is_none() {
+            let available: Vec<&str> = templates::TEMPLATES.iter().map(|t| t.key).collect();
+            anyhow::bail!(
+                "unknown template '{}'. Available: {}",
+                tmpl_key,
+                available.join(", ")
+            );
+        }
+        let resolved_name = name.unwrap_or_else(|| {
+            base.file_name()
+                .unwrap_or_default()
+                .to_string_lossy()
+                .into_owned()
+        });
+        InitAnswers {
+            name: resolved_name.clone(),
+            scope: resolved_name,
+            kind: Some(tmpl_key.clone()),
+            layout_refs: vec![],
+        }
+    } else {
+        // Auto-suggest name from directory
+        let suggested_name = name.or_else(|| {
+            detected.as_ref().map(|_| {
+                base.file_name()
+                    .unwrap_or_default()
+                    .to_string_lossy()
+                    .into_owned()
+            })
+        });
+        let stdin = std::io::stdin();
+        prompt_answers(stdin.lock(), std::io::stdout(), suggested_name)?
+    };
+
     let target_dir = base.join(&answers.name);
     std::fs::create_dir_all(&target_dir)?;
 
@@ -467,12 +539,12 @@ mod tests {
 
     #[test]
     fn prompt_collects_required_and_optional_fields() {
-        let input: &[u8] = b"\nMyProj\nprimary\nWeb\n/img/a.png\nno\n";
+        let input: &[u8] = b"\nMyProj\nprimary\nweb-app\n/img/a.png\nno\n";
         let mut out = Vec::new();
         let answers = prompt_answers(input, &mut out, None).unwrap();
         assert_eq!(answers.name, "MyProj");
         assert_eq!(answers.scope, "primary");
-        assert_eq!(answers.kind.as_deref(), Some("Web"));
+        assert_eq!(answers.kind.as_deref(), Some("web-app"));
         assert_eq!(answers.layout_refs, vec!["/img/a.png".to_string()]);
     }
 
@@ -502,7 +574,7 @@ mod tests {
         let scope_file = root.join("maestro/scopes/primary_scope.md");
         assert!(scope_file.exists());
         let body = std::fs::read_to_string(&scope_file).unwrap();
-        assert!(body.contains("Type: library"));
+        assert!(body.contains("Scope: Library"));
         std::fs::remove_dir_all(&root).ok();
     }
 }
