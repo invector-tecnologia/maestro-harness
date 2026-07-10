@@ -35,6 +35,7 @@ Maestro's brain is **Rust-native**. Fast. Uncompromising. Its interactive **TUI*
 * **🚧 Governance Codex (Config Mode):** Define *Personas* (AI profiles), *Scopes* (execution domains), *Skills* (tool capabilities). **Config Mode** is the single governance surface — view, create, edit, update, and **archive** both defaults and customs; the Maestro orchestrator persona is immutable. Deeper skill schemas and compliance enforcement are in development.
 * **📋 Secure Credentials (Planned):** OAuth2 browser login to Google Gemini planned. Basic local config auth operational; keychain integration roadmap v0.2+.
 * **✅ Agent Observability (Operational):** Structured `tracing` narration of the `observe → think → act` cognitive cycle is implemented. Cost tracking and full audit logs planned for v0.2+.
+* **✅ Inter-Agent Collaboration (Operational):** Agents can communicate directly via directed messaging (`[SEND_TO Persona]`) and share state through a globally injected key-value Scratchpad, enabling complex multi-agent workflows.
 
 ### ⚡ Dependency Matrix (Planned v0.2+)
 Maestro will partition the dependency graph into **two isolation zones** (tracked for v0.2+):
@@ -60,7 +61,7 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.3.0
 | Level | Status | Examples |
 |-------|--------|----------|
 | **Foundational** | ✅ Complete | `maestro init-config`, `maestro validate-config`, `maestro doctor` readiness checks, `maestro scaffold-markdown` |
-| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), three-mode Nim/Tatui Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
+| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), inter-agent communication (directed messaging, shared scratchpad), three-mode Nim/Tatui Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
 | **Advanced** | 📋 Planned | Governed micro-project execution (FSM · cascade · rollback · git persistence), accessibility controls, cross-platform packaging |
 | **Enterprise** | 📋 Roadmap | Compliance reporting, policy extension, audit analytics |
 
