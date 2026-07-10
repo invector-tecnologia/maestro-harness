@@ -9,7 +9,7 @@ This folder contains the development execution plans of Maestro AI Harness.
 
 ## Main Content
 - [Feature Map](FEATURE_MAP.md): **start here** — Overview of planned and implemented features.
-- [Initiatives Backlog](initiatives): Planned, in-progress, and completed initiatives are listed here. (Note: Approved Execution Plans are migrated to `docs/Maestro_Execution_Plans/tasks/`)
+- [Maestro's Execution Plans](Maestro_Execution_Plans/README.md): Planned, in-progress, and completed initiatives are listed here.
 - [Release Candidate 0.1.0](RELEASE_CANDIDATE_0.1.0.md)
 
 ## Usage
