@@ -60,9 +60,9 @@ Maestro's capabilities are organized by maturity level. **Current release: 0.3.0
 
 | Level | Status | Examples |
 |-------|--------|----------|
-| **Foundational** | ✅ Complete | `maestro init-config`, `maestro validate-config`, `maestro doctor` readiness checks, `maestro scaffold-markdown` |
-| **Core** | 🚧 Partial | Multi-agent runtime (`observe→think→act`, failure isolation), inter-agent communication (directed messaging, shared scratchpad), three-mode Nim/Tatui Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
-| **Advanced** | 📋 Planned | Governed micro-project execution (FSM · cascade · rollback · git persistence), accessibility controls, cross-platform packaging |
+| **Foundational** | ✅ Complete | `maestro config`, `maestro validate-config`, `maestro doctor` readiness checks |
+| **Core** | ✅ Complete | Multi-agent runtime (memory sliding window, tool use, model routing, `observe→think→act`), inter-agent communication (directed messaging, shared scratchpad), three-mode Nim/Tatui Workspace TUI (Config · Maestro · Product) over a stdio JSON protocol v2, Ollama provider adapter + registry, default persona catalog |
+| **Advanced** | ✅ Complete | Governed micro-project execution (FSM · cascade · rollback · git persistence), accessibility controls, cross-platform packaging |
 | **Enterprise** | 📋 Roadmap | Compliance reporting, policy extension, audit analytics |
 
 **See [`docs/Maestro_Manifesto/FEATURE_LEVELS.md`](docs/Maestro_Manifesto/FEATURE_LEVELS.md) for detailed capability breakdown.**

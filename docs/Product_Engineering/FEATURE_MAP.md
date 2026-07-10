@@ -38,11 +38,11 @@ Each feature is described with a standardized card:
 
 | Status | Count | Percentage |
 |--------|-------|------------|
-| ✅ Implemented | 40 | 62% |
-| 🚧 Partial | 5 | 8% |
+| ✅ Implemented | 47 | 67% |
+| 🚧 Partial | 4 | 6% |
 | ⬜ Stub | 2 | 3% |
-| 📋 Planned | 18 | 27% |
-| **Total** | **65** | 100% |
+| 📋 Planned | 17 | 24% |
+| **Total** | **70** | 100% |
 
 ### Business Value Distribution
 
@@ -353,13 +353,12 @@ Each feature is described with a standardized card:
 
 ### 2.10 Inter-Agent Communication
 
-- **Status:** 📋 Planned
-- **Source:** Not implemented
+- **Status:** ✅ Implemented (MLP scope)
+- **Source:** `src/application/orchestrator.rs`, `src/domain/models/memory.rs`
 - **Business Value:** 🟠 High
-- **What It Does Today:** Nothing — agents don't communicate during a cycle.
-- **What It Should Do:** Inter-agent messaging bus. Shared scratchpad/blackboard pattern.
-  Hierarchical delegation (Maestro → PM → SWE). Critic/reviewer patterns.
-- **Gap:** Full feature gap.
+- **What It Does Today:** Agents communicate via `[SEND_TO Persona]` and observe each other through a shared `Scratchpad` key-value blackboard injected into their context.
+- **What It Should Do:** Hierarchical delegation (Maestro → PM → SWE). Critic/reviewer patterns natively.
+- **Gap:** Missing native critic/reviewer protocol (relies on raw scratchpad right now).
 - **Competitor Benchmark:**
   - *MetaGPT*: Agents publish artifacts to shared environment, others observe
   - *Maestri*: Visual cables for agent-to-agent communication + shared memory nodes
